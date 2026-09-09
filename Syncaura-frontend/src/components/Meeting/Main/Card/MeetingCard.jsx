@@ -1,4 +1,9 @@
-import { Video, Camera, Monitor, ArrowRight } from "lucide-react";
+import {
+  Video,
+  ArrowRight,
+  CalendarClock,
+  X,
+} from "lucide-react";
 import { TbBrandGoogleDrive, TbBrandTeams } from "react-icons/tb";
 import { useSelector } from "react-redux";
 import { memo } from "react";
@@ -87,10 +92,29 @@ const MeetingCard = memo(function MeetingCard({
   startTime,
   endTime,
   avatarCount,
-  isDoc
+  isDoc,
+  createdBy,
+  onReschedule,
+  onCancel,
 }) {
   const { t } = useTranslation();
   const isDark = useSelector((state) => state.theme.isDark);
+  const currentUser = useSelector((state) => state.auth?.user);
+
+const currentUserId =
+  currentUser?._id ||
+  currentUser?.id ||
+  currentUser?.userId;
+
+const creatorId =
+  typeof createdBy === "object"
+    ? createdBy?._id || createdBy?.id
+    : createdBy;
+
+const isCreator =
+  !!currentUserId &&
+  !!creatorId &&
+  String(currentUserId) === String(creatorId);
   const status = getMeetingStatus(startTime, endTime, t);
 
   const MAX_VISIBLE = 3;
@@ -101,6 +125,13 @@ const MeetingCard = memo(function MeetingCard({
   const now = new Date();
   const startDateTime = new Date(startTime);
   const isUpcoming = startDateTime > now;
+  const oneHourBeforeMeeting =
+  startDateTime.getTime() - 60 * 60 * 1000;
+
+const canReschedule =
+  isCreator &&
+  isUpcoming &&
+  now.getTime() < oneHourBeforeMeeting;
 
   return (
     <>
@@ -332,10 +363,46 @@ dark:shadow-[0_0_25px_rgba(115,251,253,0.18)]
   <div className="border-t border-[#ececec] dark:border-[#3a3a3a] my-3" />
 
   {/* Bottom */}
-  <div className="flex items-center justify-between">
+  <div className="flex items-center gap-1.5 justify-between">
+    {isCreator && isUpcoming && (
+ <div className="flex items-center gap-1.5">
+
+  <button
+    onClick={onReschedule}
+    className="btn-hover px-3 py-2 rounded-full  
+      whitespace-nowrap
+      text-xs font-medium
+      text-[#2563EB]
+      bg-[#E5E7EB]
+      dark:bg-[#3A3A3A]
+      dark:text-[#73FBFD] 
+      text-xs font-medium 
+      transition"
+  >
+    Reschedule
+  </button>
+
+  <button
+    onClick={onCancel}
+    className="btn-hover min-w-[50px] px-2 py-2 rounded-full 
+      text-xs font-medium
+      whitespace-nowrap
+      text-xs font-medium
+      text-[#DC2626]
+      bg-[#FEE2E2]
+      dark:bg-[#3A2020]
+      dark:text-[#F87171]
+      transition
+    "
+  >
+    Cancel
+  </button>
+
+</div>
+)}
     <button
       disabled={isCompleted}
-      className={`btn-hover min-w-[105px] h-[34px] rounded-full flex items-center justify-center gap-2 text-xs font-medium transition ${
+      className={`btn-hover min-w-[80px] h-[34px] rounded-full flex items-center justify-center gap-2 text-xs font-medium transition ${
           isCompleted
             ? "bg-[#d1d5db] text-[#6b7280]"
             : isUpcoming
@@ -359,7 +426,7 @@ dark:shadow-[0_0_25px_rgba(115,251,253,0.18)]
       )}
     </button>
 
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-1.5">
       <img
         src={
           isDark

@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import FileUploadBox from "../FileHandle/FileUploadBox";
 import { useTranslation } from "react-i18next";
 
-export default function ScheduleMeetingModal({ onClose, onSave }) {
+export default function ScheduleMeetingModal({ onClose, onSave, creatorId }) {
   const { t } = useTranslation();
   const {
     register,
