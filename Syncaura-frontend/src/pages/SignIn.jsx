@@ -6,7 +6,7 @@ import { loginUser } from '../redux/features/authThunks'
 import { toast } from 'react-toastify'
 import { Mail, LockKeyhole, Eye, EyeOff } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
-import { FaGithub, FaFacebookF } from 'react-icons/fa'
+import { FaGithub } from 'react-icons/fa'
 import leftArt from '../assets/left-art.png'
 import './style9.css'
 import Spinner from '../components/Spinner'
@@ -237,14 +237,7 @@ export default function SignIn() {
                 <FaGithub size={22} />
               </button>
 
-              <button
-                type="button"
-                className="facebook"
-                aria-label={t('continue_with_facebook')}
-                onClick={() => toast.info("Facebook login is not implemented yet. Please use the form above to log in.")}
-              >
-                <FaFacebookF size={19} />
-              </button>
+             
             </div>
 
             <p className="switch">
