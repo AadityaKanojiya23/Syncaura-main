@@ -11,8 +11,6 @@ import {
 } from "../controllers/notice.controller.js";
 
 import {auth} from "../middlewares/auth.js"; // existing authentication middleware
-// import roleCheck from "../middlewares/roleCheck.js"; // restrict access to admin/coadmin
-
 import { permit } from "../middlewares/role.js"; // restrict access to admin/coadmin
 import upload from "../middlewares/upload.js";   // Multer middleware
 

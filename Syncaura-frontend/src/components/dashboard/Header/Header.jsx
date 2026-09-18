@@ -35,7 +35,7 @@ const Header = memo(({ currTab, show, setShow }) => {
           style={{ fontFamily: "Poppins" }}
           className=" tracking-[4px] text-lg xl:text-2xl font-extralight text-gray-500 dark:text-gray-400"
         >
-          FlowBit
+          Flowbit
         </h1>
       </div>
       <div className="flex justify-center gap-3 xl:gap-9 items-center col-span-3">

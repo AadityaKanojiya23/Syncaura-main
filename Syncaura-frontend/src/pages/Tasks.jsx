@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AnimatePresence, motion } from "framer-motion";
+
 import {
   Plus,
   Search,
@@ -16,6 +17,7 @@ import {
   ChevronUp,
   ChevronDown,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   fetchTasks,
@@ -25,7 +27,11 @@ import {
 import KanbanColumn from "../components/tasks/KanbanColumn";
 import CreateTaskModal from "../components/tasks/CreateTaskModal";
 import TaskDetailModal from "../components/tasks/TaskDetailModal";
+import RaiseTaskIssueModal from "../components/tasks/RaiseTaskIssueModal";
+import { getAssigneeBadge, getAssigneeDisplay, getTaskCreatorInfo } from "../components/tasks/taskUtils";
+import Pagination from "../components/common/Pagination";
 import { toast } from "react-toastify";
+import api from "../config/axios";
 
 // ── Priority config ──────────────────────────────────────────────────────────
 const PRIORITY_COLORS = {
@@ -59,9 +65,9 @@ const isOverdue = (dateStr, status) => {
 const StatCard = ({ label, value, icon: Icon, color }) => (
   <div className="flex items-center gap-3 bg-white dark:bg-[#1e1f22] border border-[#E8EAED] dark:border-[#2d2f33] rounded-xl px-4 py-3">
     <div
-      className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
+      className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="w-5 h-5" />
     </div>
     <div>
       <p className="text-xl font-bold text-[#0A0A0A] dark:text-white leading-none">
@@ -73,9 +79,19 @@ const StatCard = ({ label, value, icon: Icon, color }) => (
 );
 
 // ── List Row ─────────────────────────────────────────────────────────────────
-const ListRow = ({ task, onOpen, onDelete, canDelete }) => {
+const ListRow = ({
+  task,
+  onOpen,
+  onDelete,
+  canDelete,
+  usersList = [],
+  currentUser = null,
+  onRaiseIssue,
+}) => {
   const status = STATUS_LABELS[task.status] || STATUS_LABELS.TODO;
   const overdue = isOverdue(task.deadline, task.status);
+  const assigneeInfo = getAssigneeBadge(task, usersList, currentUser);
+  const creatorInfo = getTaskCreatorInfo(task, usersList, currentUser);
 
   return (
     <motion.tr
@@ -90,6 +106,15 @@ const ListRow = ({ task, onOpen, onDelete, canDelete }) => {
         <span className="text-sm font-medium text-[#0A0A0A] dark:text-white line-clamp-1">
           {task.title}
         </span>
+      </td>
+      <td className="py-3 px-3 hidden md:table-cell">
+        {task.project_name || task.project_title ? (
+          <span className="text-xs font-semibold text-blue-600 dark:text-[#73FBFD] bg-blue-50 dark:bg-[#73FBFD]/10 border border-blue-200 dark:border-[#73FBFD]/20 px-2 py-0.5 rounded-md truncate max-w-[140px] inline-block">
+            📁 {task.project_name || task.project_title}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">—</span>
+        )}
       </td>
       <td className="py-3 px-3 hidden md:table-cell">
         <span
@@ -118,22 +143,47 @@ const ListRow = ({ task, onOpen, onDelete, canDelete }) => {
         </span>
       </td>
       <td className="py-3 px-3 hidden lg:table-cell">
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          {task.assignedTo || task.assigned_to || task.assigned_user_name || "Unassigned"}
-        </span>
+        <div className="flex flex-col">
+          <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">
+            {assigneeInfo?.name || "Unassigned"}
+          </span>
+          {creatorInfo && (
+            <span className="text-[10px] text-gray-400 flex items-center gap-1">
+              {creatorInfo.isSelfAssigned ? (
+                <span className="text-purple-600 dark:text-purple-400 font-medium">Self-created</span>
+              ) : (
+                <span>{creatorInfo.label}</span>
+              )}
+            </span>
+          )}
+        </div>
       </td>
       <td className="py-3 px-3">
-        {canDelete && (
+        <div className="flex items-center justify-end gap-1.5">
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onDelete(task.id);
+              onRaiseIssue?.(task);
             }}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 btn-hover"
+            title="Raise an issue for this task"
+            className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-red-600 dark:hover:text-red-400 bg-amber-50 dark:bg-amber-950/30 hover:bg-red-50 dark:hover:bg-red-950/40 border border-amber-200 dark:border-amber-800/40 px-2 py-1 rounded-lg transition-colors btn-hover"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <AlertTriangle className="w-3 h-3 text-amber-500" />
+            <span>Issue</span>
           </button>
-        )}
+          {canDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(task.id);
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 btn-hover"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </td>
     </motion.tr>
   );
@@ -144,24 +194,45 @@ const Tasks = () => {
   const dispatch = useDispatch();
   const { tasks, isLoading } = useSelector((state) => state.tasks);
   const isDark = useSelector((state) => state.theme.isDark);
-  const userRole = useSelector((state) => state.auth?.user?.role);
+  const currentUser = useSelector((state) => state.auth?.user);
+  const userRole = (currentUser?.role || "").toLowerCase();
+  const isAdminOrCoAdmin =
+    userRole === "admin" || userRole === "co-admin" || userRole === "coadmin";
   const isAdmin = userRole === "admin";
 
-  const currentUser = useSelector((state) => state.auth?.user);
-
-  // helper: admin can delete anything, user only what they created
   const canDeleteTask = (task) =>
-    isAdmin || task?.createdBy === currentUser?.id;
+    isAdminOrCoAdmin ||
+    (currentUser?.id && (String(task?.created_by) === String(currentUser.id) || String(task?.createdBy) === String(currentUser.id)));
 
-  const [view, setView] = useState("kanban"); // "kanban" | "list"
+  const [view, setView] = useState("kanban"); 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [issueTask, setIssueTask] = useState(null);
   const [sortField, setSortField] = useState("createdAt");
   const [sortDir, setSortDir] = useState("desc");
   const [createLoading, setCreateLoading] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+  const [projectsList, setProjectsList] = useState([]);
+
+  useEffect(() => {
+    api
+      .get("/users/all")
+      .then((res) => setUsersList(res.data || []))
+      .catch(() => {});
+
+    api
+      .get("/projects")
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setProjectsList(res.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Debounce search
   useEffect(() => {
@@ -184,15 +255,48 @@ const Tasks = () => {
   // Filtered & sorted tasks
   const filtered = useMemo(() => {
     let result = [...tasks];
+
+    if (!isAdminOrCoAdmin && currentUser) {
+      const uId = String(currentUser.id || currentUser._id || "").toLowerCase();
+      const uEmail = String(currentUser.email || "").toLowerCase();
+      const uName = String(currentUser.name || "").toLowerCase();
+
+      result = result.filter((t) => {
+        const assigned = String(
+          t.assignedTo || 
+          t.assigned_to || 
+          t.assigned_user_name || 
+          t.assigned_user_email || 
+          t.userId || 
+          t.user_id || 
+          ""
+        ).toLowerCase();
+        
+        const assigneeId = String(t.assignee?.id || t.assignee?._id || t.user?.id || t.user?._id || "").toLowerCase();
+
+        return (
+          (uId && assigned === uId) ||
+          (uId && assigneeId === uId) ||
+          (uEmail && (assigned === uEmail || assigned.includes(uEmail))) ||
+          (uName && (assigned === uName || assigned.includes(uName)))
+        );
+      });
+    }
+
     if (debouncedSearch) {
       result = result.filter(
         (t) =>
-          t.title.toLowerCase().includes(debouncedSearch) ||
+          t.title?.toLowerCase().includes(debouncedSearch) ||
           t.description?.toLowerCase().includes(debouncedSearch),
       );
     }
     if (priorityFilter !== "all") {
       result = result.filter((t) => t.priority === priorityFilter);
+    }
+    if (projectFilter !== "all") {
+      result = result.filter(
+        (t) => String(t.project_id || t.projectId) === String(projectFilter),
+      );
     }
     result.sort((a, b) => {
       let aVal = a[sortField];
@@ -206,7 +310,20 @@ const Tasks = () => {
       return 0;
     });
     return result;
-  }, [tasks, debouncedSearch, priorityFilter, sortField, sortDir]);
+  }, [tasks, debouncedSearch, priorityFilter, projectFilter, sortField, sortDir, isAdminOrCoAdmin, currentUser]);
+
+  const [listPage, setListPage] = useState(1);
+  const LIST_PAGE_SIZE = 10;
+
+  useEffect(() => {
+    setListPage(1);
+  }, [debouncedSearch, priorityFilter, projectFilter, sortField, sortDir]);
+
+  const totalListPages = Math.ceil(filtered.length / LIST_PAGE_SIZE) || 1;
+  const paginatedListTasks = useMemo(() => {
+    const startIndex = (listPage - 1) * LIST_PAGE_SIZE;
+    return filtered.slice(startIndex, startIndex + LIST_PAGE_SIZE);
+  }, [filtered, listPage, LIST_PAGE_SIZE]);
 
   const tasksByStatus = useMemo(
     () => ({
@@ -220,12 +337,12 @@ const Tasks = () => {
   // Stats
   const stats = useMemo(
     () => ({
-      total: tasks.length,
-      todo: tasks.filter((t) => t.status === "TODO").length,
-      inProgress: tasks.filter((t) => t.status === "IN_PROGRESS").length,
-      done: tasks.filter((t) => t.status === "DONE").length,
+      total: filtered.length,
+      todo: filtered.filter((t) => t.status === "TODO").length,
+      inProgress: filtered.filter((t) => t.status === "IN_PROGRESS").length,
+      done: filtered.filter((t) => t.status === "DONE").length,
     }),
-    [tasks],
+    [filtered],
   );
 
   const handleCreate = async (data) => {
@@ -327,28 +444,28 @@ const Tasks = () => {
         {/* ── Toolbar ─────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-5">
           {/* Search */}
-          <div className="flex items-center gap-2 flex-1 bg-white dark:bg-[#1e1f22] border border-[#E8EAED] dark:border-[#2d2f33] rounded-xl px-3.5 py-2.5">
-            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 flex-1 bg-white dark:bg-[#121212] border border-gray-200 dark:border-[#2A2A2A] rounded-xl px-3.5 py-2.5 shadow-xs">
+            <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
             <input
               type="text"
               id="task-search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search tasks…"
-              className="flex-1 text-sm bg-transparent outline-none text-[#0A0A0A] dark:text-white placeholder:text-gray-400"
+              className="flex-1 text-sm bg-transparent outline-none text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 font-medium"
             />
           </div>
 
           {/* Priority Filter */}
-          <div className="flex items-center gap-1.5 bg-white dark:bg-[#1e1f22] border border-[#E8EAED] dark:border-[#2d2f33] rounded-xl p-1">
+          <div className="flex items-center gap-1 bg-white dark:bg-[#121212] border border-gray-200 dark:border-[#2A2A2A] rounded-xl p-1 shadow-xs">
             {["all", "high", "medium", "low"].map((p) => (
               <button
                 key={p}
                 onClick={() => setPriorityFilter(p)}
-                className={`btn-hover px-3 py-1.5 text-xs font-semibold rounded-lg capitalize ${
+                className={`btn-hover px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-all cursor-pointer ${
                   priorityFilter === p
-                    ? "bg-[#2457C5] dark:bg-[#73FBFD] text-white dark:text-black"
-                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#2d2f33]"
+                    ? "bg-[#2461E6] dark:bg-[#73FBFD] text-white dark:text-black shadow-xs"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1E1E1E]"
                 }`}
               >
                 {p === "all" ? "All" : p}
@@ -356,15 +473,31 @@ const Tasks = () => {
             ))}
           </div>
 
+          {/* Project Filter */}
+          <div className="flex items-center bg-white dark:bg-[#121212] border border-gray-200 dark:border-[#2A2A2A] rounded-xl px-3 py-1 shadow-xs">
+            <select
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="text-xs font-semibold bg-transparent text-gray-800 dark:text-gray-200 outline-none cursor-pointer py-1.5 max-w-[150px] truncate"
+            >
+              <option value="all" className="bg-white dark:bg-[#121212] text-gray-900 dark:text-gray-100">📁 All Projects</option>
+              {projectsList.map((p) => (
+                <option key={p.id} value={p.id} className="bg-white dark:bg-[#121212] text-gray-900 dark:text-gray-100">
+                  📁 {p.name || p.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* View Toggle */}
-          <div className="flex items-center bg-white dark:bg-[#1e1f22] border border-[#E8EAED] dark:border-[#2d2f33] rounded-xl p-1">
+          <div className="flex items-center bg-white dark:bg-[#121212] border border-gray-200 dark:border-[#2A2A2A] rounded-xl p-1 shadow-xs">
             <button
               id="kanban-view-btn"
               onClick={() => setView("kanban")}
-              className={`btn-hover flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg ${
+              className={`btn-hover flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 view === "kanban"
-                  ? "bg-[#2457C5] dark:bg-[#73FBFD] text-white dark:text-black"
-                  : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#2d2f33]"
+                  ? "bg-[#2461E6] dark:bg-[#73FBFD] text-white dark:text-black shadow-xs"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1E1E1E]"
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
@@ -373,10 +506,10 @@ const Tasks = () => {
             <button
               id="list-view-btn"
               onClick={() => setView("list")}
-              className={`btn-hover flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg ${
+              className={`btn-hover flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 view === "list"
-                  ? "bg-[#2457C5] dark:bg-[#73FBFD] text-white dark:text-black"
-                  : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#2d2f33]"
+                  ? "bg-[#2461E6] dark:bg-[#73FBFD] text-white dark:text-black shadow-xs"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1E1E1E]"
               }`}
             >
               <List className="w-3.5 h-3.5" />
@@ -413,6 +546,9 @@ const Tasks = () => {
                     onOpenTask={setSelectedTask}
                     onDeleteTask={handleDelete}
                     canDeleteTask={canDeleteTask}
+                    usersList={usersList}
+                    currentUser={currentUser}
+                    onRaiseIssue={setIssueTask}
                   />
                 ))}
               </motion.div>
@@ -438,50 +574,70 @@ const Tasks = () => {
                     </p>
                   </div>
                 ) : (
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-100 dark:border-[#2d2f33]">
-                        <th
-                          className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-600 dark:hover:text-gray-200 select-none"
-                          onClick={() => handleSort("title")}
-                        >
-                          Title <SortIcon field="title" />
-                        </th>
-                        <th className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell">
-                          Priority
-                        </th>
-                        <th
-                          className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-600 dark:hover:text-gray-200 select-none"
-                          onClick={() => handleSort("status")}
-                        >
-                          Status <SortIcon field="status" />
-                        </th>
-                        <th
-                          className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden lg:table-cell cursor-pointer hover:text-gray-600 dark:hover:text-gray-200 select-none"
-                          onClick={() => handleSort("deadline")}
-                        >
-                          Deadline <SortIcon field="deadline" />
-                        </th>
-                        <th className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden lg:table-cell">
-                          Assigned
-                        </th>
-                        <th className="py-3 px-3 w-10" />
-                      </tr>
-                    </thead>
-                    <AnimatePresence>
-                      <tbody>
-                        {filtered.map((task) => (
-                          <ListRow
-                            key={task.id}
-                            task={task}
-                            onOpen={setSelectedTask}
-                            onDelete={handleDelete}
-                            canDelete={canDeleteTask(task)}
-                          />
-                        ))}
-                      </tbody>
-                    </AnimatePresence>
-                  </table>
+                  <>
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-100 dark:border-[#2d2f33]">
+                          <th
+                            className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-600 dark:hover:text-gray-200 select-none"
+                            onClick={() => handleSort("title")}
+                          >
+                            Title <SortIcon field="title" />
+                          </th>
+                          <th className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell">
+                            Project
+                          </th>
+                          <th className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell">
+                            Priority
+                          </th>
+                          <th
+                            className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-600 dark:hover:text-gray-200 select-none"
+                            onClick={() => handleSort("status")}
+                          >
+                            Status <SortIcon field="status" />
+                          </th>
+                          <th
+                            className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden lg:table-cell cursor-pointer hover:text-gray-600 dark:hover:text-gray-200 select-none"
+                            onClick={() => handleSort("deadline")}
+                          >
+                            Deadline <SortIcon field="deadline" />
+                          </th>
+                          <th className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden lg:table-cell">
+                            Assigned & Origin
+                          </th>
+                          <th className="py-3 px-3 w-28 text-right" />
+                        </tr>
+                      </thead>
+                      <AnimatePresence>
+                        <tbody>
+                          {paginatedListTasks.map((task) => (
+                            <ListRow
+                              key={task.id}
+                              task={task}
+                              onOpen={setSelectedTask}
+                              onDelete={handleDelete}
+                              canDelete={canDeleteTask(task)}
+                              usersList={usersList}
+                              currentUser={currentUser}
+                              onRaiseIssue={setIssueTask}
+                            />
+                          ))}
+                        </tbody>
+                      </AnimatePresence>
+                    </table>
+
+                    {/* Table Pagination */}
+                    <div className="px-4 py-2 border-t border-gray-100 dark:border-[#2d2f33]">
+                      <Pagination
+                        currentPage={listPage}
+                        totalPages={totalListPages}
+                        totalItems={filtered.length}
+                        pageSize={LIST_PAGE_SIZE}
+                        onPageChange={setListPage}
+                        itemLabel="tasks"
+                      />
+                    </div>
+                  </>
                 )}
               </motion.div>
             )}
@@ -497,6 +653,7 @@ const Tasks = () => {
             onClose={() => setShowCreate(false)}
             onSubmit={handleCreate}
             isLoading={createLoading}
+            isAdmin={isAdminOrCoAdmin}
           />
         )}
         {selectedTask && (
@@ -506,6 +663,24 @@ const Tasks = () => {
             onClose={() => setSelectedTask(null)}
             onDeleted={() => setSelectedTask(null)}
             canDelete={canDeleteTask(selectedTask)}
+            isAdmin={isAdmin}
+            usersList={usersList}
+            currentUser={currentUser}
+            onRaiseIssue={(t) => {
+              setSelectedTask(null);
+              setIssueTask(t);
+            }}
+          />
+        )}
+        {issueTask && (
+          <RaiseTaskIssueModal
+            key="raise-issue-modal"
+            task={issueTask}
+            onClose={() => setIssueTask(null)}
+            onSuccess={() => {
+              setIssueTask(null);
+              dispatch(fetchTasks());
+            }}
           />
         )}
       </AnimatePresence>

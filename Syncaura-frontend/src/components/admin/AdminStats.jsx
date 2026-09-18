@@ -68,14 +68,14 @@ const AdminStats = ({ isDark }) => {
             `}
           >
             {/* LEFT CONTENT */}
-            <div className="flex flex-col">
-              <p className={`mt-4 font-poppins text-[12px] font-medium ${isDark ? "text-[#94A3B8]" : "text-[#94A3B8]"}`}>
+            <div className="flex flex-col justify-between py-1">
+              <p className={`text-xs font-semibold uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                 {item.title}
               </p>
-              <p className={`mt-[37px] font-poppins font-semibold text-[24px] ${isDark ? "text-[#F1F5F9]" : "text-[#020617]"}`}>
+              <p className={`text-2xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
                 {item.value}
               </p>
-              <p className={`mt-[27px] font-poppins font-semibold text-[12px] ${isDark ? colors.subtitleDark : colors.subtitleLight}`}>
+              <p className={`text-xs font-semibold ${isDark ? colors.subtitleDark : colors.subtitleLight}`}>
                 {item.note}
               </p>
             </div>

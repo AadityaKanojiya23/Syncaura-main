@@ -8,22 +8,8 @@ export const registerUser = createAsyncThunk(
       const res = await api.post("/auth/register", userData);
       return res.data;
     } catch (err) {
-      if (!err.response) {
-        console.warn("Backend offline. Simulating mock register.");
-        const mockUser = {
-          id: "mock-id-123",
-          name: userData.name || "User",
-          email: userData.email,
-          role: userData.email.toLowerCase().includes("admin") ? "admin" : "user",
-        };
-        const mockTokens = {
-          accessToken: "mock-access-token-123",
-          refreshToken: "mock-refresh-token-123",
-        };
-        return { user: mockUser, tokens: mockTokens };
-      }
       return rejectWithValue(
-        err.response?.data?.message || "Failed to register user",
+        err.response?.data?.message || err.message || "Failed to register user",
       );
     }
   },
@@ -36,52 +22,34 @@ export const loginUser = createAsyncThunk(
       const res = await api.post("/auth/login", credentials);
       return res.data;
     } catch (err) {
-      if (!err.response) {
-        console.warn("Backend offline. Simulating mock login.");
-        const mockUser = {
-          id: "mock-id-123",
-          name: credentials.email.split("@")[0] || "User",
-          email: credentials.email,
-          role: credentials.email.toLowerCase().includes("admin") ? "admin" : "user",
-        };
-        const mockTokens = {
-          accessToken: "mock-access-token-123",
-          refreshToken: "mock-refresh-token-123",
-        };
-        return { user: mockUser, tokens: mockTokens };
-      }
       return rejectWithValue(
-        err.response?.data?.message || "Failed to login",
+        err.response?.data?.message || err.message || "Failed to login",
       );
     }
   },
 );
-
 
 export const refreshAccessToken = createAsyncThunk(
   "auth/refreshToken",
   async (_, { rejectWithValue }) => {
     try {
       const refreshToken = localStorage.getItem("refreshToken");
-      if (!refreshToken) throw new Error("No refresh token");
+      if (!refreshToken) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("token");
+        return rejectWithValue("Session expired");
+      }
 
       const res = await api.post("/auth/refresh", { refreshToken });
-
       return res.data;
     } catch (err) {
-      if (!err.response && (localStorage.getItem("accessToken") || localStorage.getItem("token"))) {
-        console.warn("Backend offline. Keeping user session active via mock refresh.");
-        return {
-          user: {
-            id: "mock-id-123",
-            name: "Mock User",
-            email: "mock@example.com",
-            role: "user",
-          },
-          accessToken: "mock-access-token-123",
-        };
-      }
-      return rejectWithValue("Session expired");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+      return rejectWithValue(
+        err.response?.data?.message || "Session expired",
+      );
     }
   }
 );
@@ -127,3 +95,4 @@ export const changePassword = createAsyncThunk(
     }
   },
 );
+

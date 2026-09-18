@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Send,
@@ -16,7 +17,6 @@ import {
     Minus,
 } from "lucide-react";
 import api from "../../config/axios";
-
 const renderMessageText = (text) => {
     if (!text) return "";
     
@@ -113,7 +113,8 @@ export default function SupportChatbot() {
     const [loading, setLoading] = useState(false);
     const [micError, setMicError] = useState("");
     const [isHovered, setIsHovered] = useState(false);
-
+    const user = useSelector((state) => state.auth.user);
+const userInitial = (user?.first_name || user?.name || "U").charAt(0).toUpperCase();
     const chatRef = useRef(null);
     const bottomRef = useRef(null);
     const streamRef = useRef(null);
@@ -369,11 +370,10 @@ export default function SupportChatbot() {
                                         </div>
 
                                         {m.from === "user" && (
-                                            <div className="bg-linear-180 from-red-400 to-red-800 p-2 rounded-full  flex size-8 items-center justify-center">
-                                                <p className="text-white text-base" >J</p>
-
-                                            </div>
-                                        )}
+    <div className="bg-linear-180 from-red-400 to-red-800 p-2 rounded-full flex size-8 items-center justify-center">
+        <p className="text-white text-base">{userInitial}</p>
+    </div>
+)}
                                     </motion.div>
                                 ))}
                             </AnimatePresence>

@@ -5,19 +5,33 @@ import pool from "../config/db.js";
 import { generateAccessToken, generateRefreshToken, assignRefreshId } from "../utils/generateTokens.js";
 import { getAccessToken as getGithubAccessToken } from "../services/githubAPI.js";
 
-// Scopes for Google OAuth Login
+// Scopes for Google OAuth Login & Calendar
 const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
+  "https://www.googleapis.com/auth/calendar",
 ];
 
+const getRedirectUri = (req) => {
+  if (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.trim()) {
+    return process.env.GOOGLE_REDIRECT_URI.trim();
+  }
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const host = req.get('host');
+  return `${protocol}://${host}/api/auth/google/callback`;
+};
+
 // Instantiating local oauthClient for auth login/signup flow
-const getOauth2Client = () => {
-  return new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_LOGIN_REDIRECT_URI || "http://localhost:5000/api/auth/google/callback"
-  );
+const getOauth2Client = (req) => {
+  const redirectUri = getRedirectUri(req);
+  return {
+    client: new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      redirectUri
+    ),
+    redirectUri,
+  };
 };
 
 /**
@@ -25,11 +39,23 @@ const getOauth2Client = () => {
  */
 export const initiateGoogleLogin = async (req, res) => {
   try {
-    const oauth2Client = getOauth2Client();
+    const rawOrigin = req.query.origin || (req.get('referer') ? new URL(req.get('referer')).origin : null);
+    const clientOrigin = rawOrigin || process.env.CLIENT_URL || "https://flowbit.pages.dev";
+
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      console.error("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in backend environment variables.");
+      return res.redirect(`${clientOrigin}/signin?error=${encodeURIComponent("Google Client ID or Secret is not configured on the backend.")}`);
+    }
+
+    const { client: oauth2Client, redirectUri } = getOauth2Client(req);
+    const statePayload = Buffer.from(JSON.stringify({ origin: clientOrigin, t: Date.now() })).toString('base64');
+
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: GOOGLE_SCOPES,
+      state: statePayload,
       prompt: "consent",
+      redirect_uri: redirectUri,
     });
 
     res.redirect(authUrl);
@@ -43,14 +69,25 @@ export const initiateGoogleLogin = async (req, res) => {
  * Handle Google callback, register or login user, generate tokens, and redirect to frontend
  */
 export const handleGoogleCallback = async (req, res) => {
+  let clientUrl = process.env.CLIENT_URL || "https://flowbit.pages.dev";
+
+  if (req.query.state) {
+    try {
+      const parsed = JSON.parse(Buffer.from(req.query.state, 'base64').toString('utf8'));
+      if (parsed?.origin) {
+        clientUrl = parsed.origin;
+      }
+    } catch (e) {}
+  }
+
   try {
     const { code } = req.query;
     if (!code) {
-      return res.status(400).json({ message: "Google authorization code missing" });
+      return res.redirect(`${clientUrl}/signin?error=${encodeURIComponent("Google authorization code missing")}`);
     }
 
-    const oauth2Client = getOauth2Client();
-    const { tokens } = await oauth2Client.getToken(code);
+    const { client: oauth2Client, redirectUri } = getOauth2Client(req);
+    const { tokens } = await oauth2Client.getToken({ code, redirect_uri: redirectUri });
     oauth2Client.setCredentials(tokens);
 
     // Get user info from Google API
@@ -58,7 +95,7 @@ export const handleGoogleCallback = async (req, res) => {
     const { data: userInfo } = await oauth2.userinfo.get();
 
     if (!userInfo.email) {
-      return res.status(400).json({ message: "Google account does not have a valid email address" });
+      return res.redirect(`${clientUrl}/signin?error=${encodeURIComponent("Google account does not have a valid email address")}`);
     }
 
     const email = userInfo.email.toLowerCase();
@@ -81,6 +118,26 @@ export const handleGoogleCallback = async (req, res) => {
       user = insertRes.rows[0];
     }
 
+    // Save Google OAuth tokens for calendar sync
+    await pool.query(
+      `UPDATE users SET 
+        google_access_token = $1, 
+        google_refresh_token = COALESCE($2, google_refresh_token), 
+        google_scope = COALESCE($3, google_scope), 
+        google_token_type = COALESCE($4, google_token_type), 
+        google_expiry_date = COALESCE($5, google_expiry_date),
+        updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $6`,
+      [
+        tokens.access_token,
+        tokens.refresh_token || null,
+        tokens.scope || null,
+        tokens.token_type || null,
+        tokens.expiry_date || null,
+        user.id,
+      ]
+    );
+
     // Generate JWT access & refresh tokens
     const rid = assignRefreshId(user);
     await pool.query("UPDATE users SET refresh_token_id = $1 WHERE id = $2", [rid, user.id]);
@@ -97,11 +154,9 @@ export const handleGoogleCallback = async (req, res) => {
     });
 
     // Redirect user back to frontend AuthCallback route
-    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     res.redirect(`${clientUrl}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}&role=${user.role}&name=${encodeURIComponent(user.name)}`);
   } catch (error) {
     console.error("Google OAuth login callback error:", error);
-    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     res.redirect(`${clientUrl}/signin?error=${encodeURIComponent("Google OAuth Login failed: " + error.message)}`);
   }
 };

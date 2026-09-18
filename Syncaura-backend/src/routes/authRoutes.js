@@ -14,6 +14,7 @@ import {
   logout
 } from '../controllers/authController.js';
 
+import { activateAccount } from '../controllers/accountController.js';
 import {
   initiateGoogleLogin,
   handleGoogleCallback,
@@ -32,6 +33,10 @@ import {
   requestPasswordOtpValidator,
   changePasswordWithOtpValidator
 } from '../validators/authValidators.js';
+
+import {
+  activateAccountValidator
+} from '../validators/accountValidators.js';
 
 const router = Router();
 
@@ -73,5 +78,11 @@ router.get('/admin', auth, permit('admin'), adminOnly);
 
 // Logout
 router.post('/logout', logout);
+
+router.post(
+  '/activate-account',
+  activateAccountValidator,
+  activateAccount
+);
 
 export default router;

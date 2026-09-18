@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 const testimonials = [
   {
     key: "priya",
-    quote: "We reduced 40% of manual work after switching to FlowBit. Attendance and leave tracking became completely effortless.",
+    quote: "We reduced 40% of manual work after switching to Flowbit. Attendance and leave tracking became completely effortless.",
     name: "Priya S",
     role: "HR Executive",
     company: "TechCorp India",
@@ -46,7 +46,7 @@ const testimonials = [
   },
   {
     key: "ananya",
-    quote: "FlowBit completely transformed how our remote team collaborates. Productivity has never been this high.",
+    quote: "Flowbit completely transformed how our remote team collaborates. Productivity has never been this high.",
     name: "Ananya T",
     role: "COO",
     company: "ScaleUp Labs",
@@ -56,7 +56,7 @@ const testimonials = [
   },
   {
     key: "karan",
-    quote: "Performance analytics in FlowBit helped us identify bottlenecks we never knew existed. Game-changer.",
+    quote: "Performance analytics in Flowbit helped us identify bottlenecks we never knew existed. Game-changer.",
     name: "Karan D",
     role: "CTO",
     company: "NexaCloud",

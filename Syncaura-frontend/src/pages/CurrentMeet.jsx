@@ -3,17 +3,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useMedia } from "../context/MediaContext";
 import { Mic, MicOff, Hand } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { calculateLayout, PARTICIPANTS } from "../constant/constant";
-import SidePanel from "../components/FlowBitMeeting/SidePanel";
-import PaginationDots from "../components/FlowBitMeeting/PaginationDots";
-import ControlBar from "../components/FlowBitMeeting/ControlBar";
-import MeetingCard from "../components/FlowBitMeeting/MeetingCard";
-import MeetingCardParent from "../components/FlowBitMeeting/MeetingCardParent";
-import ParticipantGrid from "../components/FlowBitMeeting/ParticipantGrid";
+import { calculateLayout } from "../constant/constant";
+import SidePanel from "../components/FlowbitMeeting/SidePanel";
+import PaginationDots from "../components/FlowbitMeeting/PaginationDots";
+import ControlBar from "../components/FlowbitMeeting/ControlBar";
+import MeetingCard from "../components/FlowbitMeeting/MeetingCard";
+import MeetingCardParent from "../components/FlowbitMeeting/MeetingCardParent";
+import ParticipantGrid from "../components/FlowbitMeeting/ParticipantGrid";
 
 const FlowBitMeetingPage = () => {
   const dispatch = useDispatch();
   const isDarkTheme = useSelector((state) => state.theme.isDark);
+
+  const user = useSelector((state) => state.auth.user);
 
   const [gridLayout, setGridLayout] = useState({
     cols: 1,
@@ -21,19 +23,20 @@ const FlowBitMeetingPage = () => {
     cardWidth: 0,
     cardHeight: 0,
   });
-  const [chatMessages, setChatMessages] = useState([
-    {
-      id: 1,
-      message: "Hey bro, you free ah? Need to ask something.",
-      isMe: false,
-    },
-    { id: 2, message: "Ya I'm free. What do you want to ask?", isMe: true },
-  ]);
+  const [chatMessages, setChatMessages] = useState([]);
   const [raisedHands, setRaisedHands] = useState([]);
   const [emojiReactions, setEmojiReactions] = useState({});
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
-  const [participants, setParticipants] = useState(PARTICIPANTS);
+  const [participants, setParticipants] = useState(() => [
+    {
+      id: user?.id || 1,
+      name: user?.name || "You",
+      initial: (user?.name || "Y")[0]?.toUpperCase(),
+      color: "#2461E6",
+      isHost: true,
+    },
+  ]);
   const [controllerHeight, setControllerHeight] = useState(0);
   const gridRef = useRef(null);
   const controllerRef = useRef(null);

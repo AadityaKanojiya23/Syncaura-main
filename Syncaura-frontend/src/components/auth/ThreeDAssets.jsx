@@ -434,9 +434,9 @@ export const TrustStats = () => {
     <div className="w-full mt-12 mb-4">
       <div className="mb-8">
         <h3 className="text-xs font-bold text-indigo-400 mb-2 uppercase tracking-widest">Growth</h3>
-        <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">Millions trust FlowBit daily</h2>
+        <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">Millions trust Flowbit daily</h2>
         <p className="text-slate-300 text-sm leading-relaxed max-w-lg font-light">
-          Over two million users worldwide depend on FlowBit to manage their work. Students, teams, and organizations choose us because we deliver results.
+          Over two million users worldwide depend on Flowbit to manage their work. Students, teams, and organizations choose us because we deliver results.
         </p>
       </div>
 

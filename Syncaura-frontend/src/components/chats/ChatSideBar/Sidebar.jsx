@@ -1,19 +1,64 @@
-import { Edit3, Search, MoreVertical ,BookmarkCheck, BellOff, CircleMinus, VolumeX} from "lucide-react";
+import {
+  Edit3,
+  Search,
+  MoreVertical,
+  BookmarkCheck,
+  BellOff,
+  CircleMinus,
+  VolumeX,
+  Users,
+} from "lucide-react";
 import Avatar from "../Avatar";
 import { useEffect, useState, useRef } from "react";
+import { useDispatch } from "react-redux";
+import { createPrivateChat } from "../../../redux/features/chatThunks";
+import CreateGroupModal from "./CreateGroupModal";
 
-export default function Sidebar({ chats, selectedChat, onSelect, onViewChange }) {
+export default function Sidebar({
+  chats,
+  selectedChat,
+  onSelect,
+  onViewChange,
+}) {
   const [search, setSearch] = useState("");
   const [debouncedValue, setDebouncedValue] = useState("");
   const [chatList, setChatList] = useState(chats);
   const [filteredItems, setFilteredItems] = useState(chats);
-  const [showMenu, setShowMenu] = useState(false);
   const [currentView, setCurrentView] = useState("chat"); // 'chat', 'archived', 'starred'
   const [selectMode, setSelectMode] = useState(false);
   const [selectedChats, setSelectedChats] = useState([]);
   const [showSelectMenu, setShowSelectMenu] = useState(false);
-  const menuRef = useRef(null);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [usersList, setUsersList] = useState([]);
   const selectMenuRef = useRef(null);
+  const dispatch = useDispatch();
+
+  // Fetch users when modal opens
+  useEffect(() => {
+    if (showNewChatModal || showCreateGroupModal) {
+      import("../../../config/axios").then(({ default: api }) => {
+        api
+          .get("/users/all")
+          .then((res) => setUsersList(res.data))
+          .catch(console.error);
+      });
+    }
+  }, [showNewChatModal, showCreateGroupModal]);
+
+  const handleCreateNewChat = (userId) => {
+    dispatch(createPrivateChat(userId))
+      .unwrap()
+      .then(() => {
+        setShowNewChatModal(false);
+      })
+      .catch((err) => {
+        console.error("Failed to create chat:", err);
+        alert(
+          "Failed to start chat. Your session may have expired. Please refresh the page and try logging in again.",
+        );
+      });
+  };
 
   // Sample starred messages data
   const [starredMessages] = useState([
@@ -23,7 +68,7 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
       receiver: "Aarav M",
       time: "2:30 PM",
       text: "Ya I'm free. What do you want to ask?",
-      isOwn: true
+      isOwn: true,
     },
     {
       id: 2,
@@ -31,18 +76,17 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
       receiver: "You",
       time: "2:30 PM",
       text: "Hey bro, you free ah? Need to ask something.",
-      isOwn: false
-    }
+      isOwn: false,
+    },
   ]);
-  
 
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowMenu(false);
-      }
-      if (selectMenuRef.current && !selectMenuRef.current.contains(event.target)) {
+      if (
+        selectMenuRef.current &&
+        !selectMenuRef.current.contains(event.target)
+      ) {
         setShowSelectMenu(false);
       }
     }
@@ -80,7 +124,7 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
     }
 
     const searchData = itemsToFilter.filter((item) =>
-      item.name.toLowerCase().includes(debouncedValue.toLowerCase())
+      item.name.toLowerCase().includes(debouncedValue.toLowerCase()),
     );
 
     setFilteredItems(searchData);
@@ -88,7 +132,7 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
 
   const handleMenuItemClick = (action) => {
     setShowMenu(false);
-    
+
     switch (action) {
       case "chat":
         setCurrentView("chat");
@@ -125,7 +169,7 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
         }
         // Mark all chats as read (set unread to 0)
         setChatList((prevChats) =>
-          prevChats.map((chat) => ({ ...chat, unread: 0 }))
+          prevChats.map((chat) => ({ ...chat, unread: 0 })),
         );
         break;
     }
@@ -147,7 +191,7 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
 
   const handleSelectMenuAction = (action) => {
     setShowSelectMenu(false);
-    
+
     switch (action) {
       case "markAsRead":
         // Mark selected chats as read
@@ -155,8 +199,8 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
           prevChats.map((chat) =>
             selectedChats.find((sc) => sc.id === chat.id)
               ? { ...chat, unread: 0 }
-              : chat
-          )
+              : chat,
+          ),
         );
         setSelectedChats([]);
         setSelectMode(false);
@@ -167,8 +211,8 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
           prevChats.map((chat) =>
             selectedChats.find((sc) => sc.id === chat.id)
               ? { ...chat, isMuted: !chat.isMuted }
-              : chat
-          )
+              : chat,
+          ),
         );
         setSelectedChats([]);
         setSelectMode(false);
@@ -224,7 +268,9 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
             </div>
 
             {/* Message bubble */}
-            <div className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}>
+            <div
+              className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}
+            >
               <div
                 className={`max-w-xs px-4 py-2 rounded-2xl text-sm ${
                   msg.isOwn
@@ -244,94 +290,18 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
   return (
     <aside
       className={
-  `relative w-full sm:w-72 md:w-80 lg:w-80
-   flex flex-col border-r
+        `relative w-full h-full
+   flex flex-col
    bg-[#FFFFFF] dark:bg-[#2E2F2F]
-   border-[#E0DDDD] dark:border-[#575757]
-   ` +
-   (selectedChat ? "hidden md:flex" : "flex")
-}
+   ` + (selectedChat ? "hidden md:flex" : "flex")
+      }
     >
       {/* Header */}
-      <div className="p-3  md:p-4 border-b border-[#E0DDDD] dark:border-[#575757]">
+      <div className="flex-shrink-0 p-3 md:p-4 border-b border-[#E0DDDD] dark:border-[#575757]">
         <div className="flex w-full items-center justify-between">
           <h2 className="text-2xl md:text-3xl text-[#000000] dark:text-[#FFFFFF] font-semibold mb-2">
             {getTitle()}
           </h2>
-          
-          {/* Three dot menu */}
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors btn-hover"
-            >
-              <MoreVertical className="size-6 md:size-7 text-black dark:text-white" />
-            </button>
-
-            {/* Dropdown Menu - Positioned to the RIGHT as per Figma */}
-            {showMenu && (
-              <div className="absolute right-0 top-10 md:left-0 md:top-10 w-[200px] bg-white dark:bg-[#2E2F2F] border border-[#D1D1D1] dark:border-[#575757] rounded-xl shadow-lg py-1.5 z-50">
-                <button
-                  onClick={() => handleMenuItemClick("chat")}
-                  className={`btn-hover w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-[#000000] dark:text-white text-base flex items-center gap-3 transition-colors ${
-                    currentView === "chat" ? "bg-[#F5F5F5] dark:bg-gray-700" : ""
-                  }`}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
-                    <path d="M14 9.5C14 10.163 13.7366 10.7989 13.2678 11.2678C12.7989 11.7366 12.163 12 11.5 12H4.5L2 14.5V4.5C2 3.837 2.26339 3.20107 2.73223 2.73223C3.20107 2.26339 3.837 2 4.5 2H11.5C12.163 2 12.7989 2.26339 13.2678 2.73223C13.7366 3.20107 14 3.837 14 4.5V9.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Chat
-                </button>
-
-                <button
-                  onClick={() => handleMenuItemClick("archived")}
-                  className={`btn-hover w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-[#000000] dark:text-white text-base flex items-center gap-3 transition-colors ${
-                    currentView === "archived" ? "bg-[#F5F5F5] dark:bg-gray-700" : ""
-                  }`}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
-                    <path d="M14 5.5V12.5C14 13.163 13.7366 13.7989 13.2678 14.2678C12.7989 14.7366 12.163 15 11.5 15H4.5C3.837 15 3.20107 14.7366 2.73223 14.2678C2.26339 13.7989 2 13.163 2 12.5V5.5M14 5.5L12 1H4L2 5.5M14 5.5H2M10.5 8H5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Archived Chat
-                </button>
-
-                <button
-                  onClick={() => handleMenuItemClick("starred")}
-                  className={`btn-hover w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-[#000000] dark:text-white text-base flex items-center gap-3 transition-colors ${
-                    currentView === "starred" ? "bg-[#F5F5F5] dark:bg-gray-700" : ""
-                  }`}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
-                    <path d="M8 2L10.12 6.31L15 7.01L11.5 10.41L12.36 15.27L8 13.03L3.64 15.27L4.5 10.41L1 7.01L5.88 6.31L8 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Starred Messages
-                </button>
-
-                <button
-                  onClick={() => handleMenuItemClick("select")}
-                  className={`btn-hover w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-[#000000] dark:text-white text-base flex items-center gap-3 transition-colors ${
-                    selectMode ? "bg-[#F5F5F5] dark:bg-gray-700" : ""
-                  }`}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
-                    <path d="M13.5 2.5H2.5C2.22386 2.5 2 2.72386 2 3V13C2 13.2761 2.22386 13.5 2.5 13.5H13.5C13.7761 13.5 14 13.2761 14 13V3C14 2.72386 13.7761 2.5 13.5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M5 8L7 10L11 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Select Chat
-                </button>
-
-                <button
-                  onClick={() => handleMenuItemClick("markAllRead")}
-                  className="w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-[#000000] dark:text-white text-base flex items-center gap-3 transition-colors btn-hover"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
-                    <path d="M13.5 4.5L6 12L2.5 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Mark all as read
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Select Mode Header */}
@@ -363,36 +333,33 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
 
               {showSelectMenu && (
                 <div className="absolute left-0 top-10 w-[220px] bg-white dark:bg-[#2E2F2F] border border-[#D1D1D1] dark:border-[#575757] rounded-xl shadow-lg py-1.5 z-50">
+                  {/* Mark as read */}
+                  <button
+                    onClick={() => handleSelectMenuAction("markAsRead")}
+                    className="w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-black dark:text-white text-base flex items-center gap-3 transition-colors btn-hover"
+                  >
+                    <BookmarkCheck size={18} className="flex-shrink-0" />
+                    Mark as read
+                  </button>
 
-  {/* Mark as read */}
-  <button
-    onClick={() => handleSelectMenuAction("markAsRead")}
-    className="w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-black dark:text-white text-base flex items-center gap-3 transition-colors btn-hover"
-  >
-    <BookmarkCheck size={18} className="flex-shrink-0" />
-    Mark as read
-  </button>
+                  {/* Mute notification */}
+                  <button
+                    onClick={() => handleSelectMenuAction("mute")}
+                    className="w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-black dark:text-white text-base flex items-center gap-3 transition-colors btn-hover"
+                  >
+                    <BellOff size={18} className="flex-shrink-0" />
+                    Mute Notification
+                  </button>
 
-  {/* Mute notification */}
-  <button
-    onClick={() => handleSelectMenuAction("mute")}
-    className="w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-black dark:text-white text-base flex items-center gap-3 transition-colors btn-hover"
-  >
-    <BellOff size={18} className="flex-shrink-0" />
-    Mute Notification
-  </button>
-
-  {/* Clear selected chat */}
-  <button
-    onClick={() => handleSelectMenuAction("clearSelected")}
-    className="w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-black dark:text-white text-base flex items-center gap-3 transition-colors btn-hover"
-  >
-    <CircleMinus size={18} className="flex-shrink-0" />
-    Clear Selected chat
-  </button>
-
-</div>
-
+                  {/* Clear selected chat */}
+                  <button
+                    onClick={() => handleSelectMenuAction("clearSelected")}
+                    className="w-full text-left px-4 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 text-black dark:text-white text-base flex items-center gap-3 transition-colors btn-hover"
+                  >
+                    <CircleMinus size={18} className="flex-shrink-0" />
+                    Clear Selected chat
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -439,14 +406,23 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
                 )}
 
                 <div className="flex-shrink-0">
-                    <Avatar label={c.avatar} gradient={c.gradient} />
-                 </div>
+                  <Avatar
+                    label={c.avatar || c.name?.charAt(0)}
+                    gradient={c.gradient}
+                    src={c.profilePic || c.profile_pic}
+                  />
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm md:text-lg text-black dark:text-white truncate">
                         {c.name}
                       </p>
+                      {Number(c.unread) > 0 && !selectMode && (
+                        <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[11px] font-semibold bg-blue-600 dark:bg-[#73FBFD] text-white dark:text-black">
+                          {c.unread}
+                        </span>
+                      )}
                       {/* Mute icon */}
                       {c.isMuted && (
                         <VolumeX
@@ -455,15 +431,14 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
                         />
                       )}
                     </div>
-                    <span className="text-xs md:text-sm text-black dark:text-white">{c.time}</span>
+                    <span className="text-xs md:text-sm text-black dark:text-white">
+                      {c.time}
+                    </span>
                   </div>
-                  <p className="text-xs text-black dark:text-white truncate">{c.last}</p>
+                  <p className="text-xs text-black dark:text-white truncate">
+                    {c.last}
+                  </p>
                 </div>
-                {c.unread > 0 && !selectMode && (
-                  <span className="absolute bottom-2 right-3 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[11px] font-semibold bg-blue-600 dark:bg-[#73FBFD] text-white dark:text-black">
-                    {c.unread}
-                  </span>
-                )}
               </div>
             ))
           ) : (
@@ -483,12 +458,76 @@ export default function Sidebar({ chats, selectedChat, onSelect, onViewChange })
         </div>
       )}
 
+      {/* Floating circular Group button inside sidebar */}
+      <button
+        onClick={() => setShowCreateGroupModal(true)}
+        className="absolute bottom-[84px] right-4 w-12 h-12 rounded-full bg-blue-600 dark:bg-[#73FBFD] flex items-center justify-center text-white dark:text-black shadow-lg hover:scale-105 transition-transform btn-hover z-50 cursor-pointer"
+        title="Create Group Chat"
+      >
+        <Users className="size-5 md:size-6" />
+      </button>
+
       {/* Floating circular Edit button inside sidebar */}
       <button
-        className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-blue-600 dark:bg-[#73FBFD] flex items-center justify-center text-white dark:text-black shadow-lg hover:scale-105 transition-transform btn-hover"
+        onClick={() => setShowNewChatModal(true)}
+        className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-blue-600 dark:bg-[#73FBFD] flex items-center justify-center text-white dark:text-black shadow-lg hover:scale-105 transition-transform btn-hover z-50 cursor-pointer"
+        title="New Private Chat"
       >
         <Edit3 className="size-5 md:size-6" />
       </button>
+
+      {/* Create Group Modal */}
+      {showCreateGroupModal && (
+        <CreateGroupModal
+          onClose={() => setShowCreateGroupModal(false)}
+          usersList={usersList}
+        />
+      )}
+
+      {/* New Chat Modal */}
+      {showNewChatModal && (
+        <div className="absolute inset-0 z-50 bg-black/50 flex flex-col items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#2E2F2F] rounded-xl w-full max-w-sm overflow-hidden flex flex-col max-h-full">
+            <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center">
+              <h3 className="font-semibold text-black dark:text-white">
+                New Chat
+              </h3>
+              <button
+                onClick={() => setShowNewChatModal(false)}
+                className="text-gray-500 hover:text-black dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {usersList.length > 0 ? (
+                usersList.map((user) => (
+                  <div
+                    key={user.id}
+                    onClick={() => handleCreateNewChat(user.id)}
+                    className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer"
+                  >
+                    <Avatar
+                      label={user.name?.charAt(0) || "U"}
+                      src={user.profilePic || user.profile_pic}
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-black dark:text-white">
+                        {user.name}
+                      </div>
+                      <div className="text-xs text-gray-500">{user.email}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center p-4 text-gray-500">
+                  Loading users...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

@@ -115,10 +115,10 @@ export default function LearnMore() {
               className="space-y-6"
             >
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                Discover <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400">FlowBit</span>
+                Discover <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400">Flowbit</span>
               </h1>
               <p className="text-lg md:text-xl max-w-3xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Learn how FlowBit integrates task management, virtual meetings, group messaging, and documents into a unified, lightning-fast workspace.
+                Learn how Flowbit integrates task management, virtual meetings, group messaging, and documents into a unified, lightning-fast workspace.
               </p>
             </motion.div>
           </div>
@@ -185,7 +185,7 @@ export default function LearnMore() {
           <div className="max-w-7xl mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-                FlowBit Core Features
+                Flowbit Core Features
               </h2>
               <p className="text-sm md:text-base max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
                 Every element of our stack is crafted to operate smoothly side-by-side.

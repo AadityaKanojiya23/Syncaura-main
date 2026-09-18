@@ -33,7 +33,7 @@ export default function LogoutConfirmationModal({ isOpen, onClose }) {
           Confirm Logout
         </h2>
         <p className="text-gray-500 dark:text-zinc-400 text-sm mb-6">
-          Are you sure you want to log out of FlowBit? Your active session will be ended.
+          Are you sure you want to log out of Flowbit? Your active session will be ended.
         </p>
 
         {/* Buttons */}

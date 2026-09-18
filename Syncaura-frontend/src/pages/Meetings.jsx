@@ -3,27 +3,39 @@ import { FaSearch, FaBars } from "react-icons/fa";
 import MeetingCard from "../components/Meeting/Main/Card/MeetingCard";
 import ScheduleMeetingModal from "../components/Meeting/Main/Model/ScheduleMeetingModal";
 import FilterTabs from "../components/Meeting/Main/Tab/FilterTabs";
-import Sidebar from "../components/Meeting/Sidebar/Sidebar";
+import Sidebar from "../components/Meeting/sidebar/Sidebar";
 import MeetingFilter from "../components/Meeting/MeetingFilter";
+import Pagination from "../components/common/Pagination";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import {
+  getMeetings,
+  syncCalendarEvents,
+  createMeeting,
+} from "../redux/features/meetingThunks";
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 export default function Meetings() {
   const { t } = useTranslation();
+  const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const reduxMeetings = useSelector(
     (state) => state.meeting?.meetings || []
   );
 
+  const isSyncing = useSelector(
+    (state) => state.meeting?.isSyncing || false
+  );
+
   const currentUser = useSelector((state) => state.auth?.user);
+  const reduxAuthToken = useSelector((state) => state.auth?.token);
+
   const userRole = currentUser?.role;
 
-  // Get current logged-in user's ID from different possible auth structures
   const currentUserId =
     currentUser?._id ||
     currentUser?.id ||
@@ -39,7 +51,7 @@ export default function Meetings() {
   const [appliedFilters, setAppliedFilters] = useState(null);
   const [search, setSearch] = useState("");
 
-  // Frontend state for reschedule/cancel
+  // Frontend-only state for reschedule/cancel
   const [localMeetings, setLocalMeetings] = useState([]);
   const [cancelledMeetings, setCancelledMeetings] = useState([]);
 
@@ -49,46 +61,109 @@ export default function Meetings() {
   const [rescheduleStart, setRescheduleStart] = useState("");
   const [rescheduleEnd, setRescheduleEnd] = useState("");
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 8;
+
+  // Load meetings
+  useEffect(() => {
+    dispatch(getMeetings());
+  }, [dispatch]);
+
+  // Handle Google Calendar redirect result
   useEffect(() => {
     const isGoogleConnected = searchParams.get("google_connected");
     const errorMsg = searchParams.get("error");
 
     if (isGoogleConnected === "true") {
       toast.success("Google Calendar connected successfully! 🎉");
-      searchParams.delete("google_connected");
-      setSearchParams(searchParams);
+      dispatch(syncCalendarEvents());
+
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("google_connected");
+      setSearchParams(nextParams);
     } else if (errorMsg) {
       toast.error(
         `Failed to connect Google Calendar: ${decodeURIComponent(errorMsg)}`
       );
-      searchParams.delete("error");
-      setSearchParams(searchParams);
-    }
-  }, [searchParams, setSearchParams]);
 
-  const handleSyncCalendar = () => {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("error");
+      setSearchParams(nextParams);
+    }
+  }, [searchParams, setSearchParams, dispatch]);
+
+  // Sync Google Calendar
+  const handleSyncCalendar = async () => {
     const token =
       localStorage.getItem("accessToken") ||
-      localStorage.getItem("token");
+      localStorage.getItem("token") ||
+      reduxAuthToken;
 
     if (!token) {
       toast.error("Please log in first.");
       return;
     }
 
-    const apiBase =
-      import.meta.env.VITE_API_URL || "http://localhost:5000";
+    localStorage.setItem("accessToken", token);
+    localStorage.setItem("token", token);
 
-    window.location.href = `${apiBase}/auth/google?token=${token}`;
+    try {
+      const resultAction = await dispatch(syncCalendarEvents());
+
+      if (syncCalendarEvents.fulfilled.match(resultAction)) {
+        toast.success(
+          resultAction.payload?.message ||
+            "Calendar synced successfully! 📅"
+        );
+        return;
+      }
+
+      console.log("Calendar sync failed:", resultAction.payload);
+
+      window.location.href = `/auth/google?token=${encodeURIComponent(
+        token
+      )}`;
+    } catch (err) {
+      console.error("Calendar sync error:", err);
+
+      window.location.href = `/auth/google?token=${encodeURIComponent(
+        token
+      )}`;
+    }
+  };
+
+  // Create meeting
+  const handleCreateMeeting = async (meetingData) => {
+    try {
+      const resultAction = await dispatch(createMeeting(meetingData));
+
+      if (createMeeting.fulfilled.match(resultAction)) {
+        toast.success("Meeting created successfully! 🎉");
+        dispatch(getMeetings());
+        setModalOpen(false);
+      } else {
+        toast.error(
+          resultAction.payload || "Failed to create meeting"
+        );
+      }
+    } catch (error) {
+      console.error("Create meeting error:", error);
+      toast.error("Failed to create meeting");
+    }
   };
 
   const getMeetingType = useCallback((startTime, endTime) => {
     const now = new Date();
     const start = new Date(startTime);
-    const end = endTime ? new Date(endTime) : start;
+
+    const end = endTime
+      ? new Date(endTime)
+      : new Date(start.getTime() + 60 * 60 * 1000);
 
     if (now >= start && now <= end) return "ongoing";
     if (now < start) return "upcoming";
+
     return "past";
   }, []);
 
@@ -170,7 +245,7 @@ export default function Meetings() {
     ];
   }, [currentUserId]);
 
-  // Merge Redux meetings + locally created/rescheduled meetings
+  // Merge Redux meetings with local frontend changes
   const displayMeetings = useMemo(() => {
     const source =
       reduxMeetings.length > 0 ? reduxMeetings : demoMeetings;
@@ -207,24 +282,16 @@ export default function Meetings() {
     cancelledMeetings,
   ]);
 
-  const handleScheduleSave = (meeting) => {
-    const meetingWithCreator = {
-      ...meeting,
-      createdBy: currentUserId,
-    };
-
-    setLocalMeetings((prev) => [...prev, meetingWithCreator]);
-    setModalOpen(false);
-
-    toast.success("Meeting scheduled successfully!");
-  };
-
+  // Open reschedule modal
   const openReschedule = (meeting) => {
     const now = new Date();
     const start = new Date(meeting.startTime);
 
-    // Reschedule allowed only before 1 hour of meeting
-    if (start.getTime() - now.getTime() <= 60 * 60 * 1000) {
+    // Reschedule only when meeting is more than 1 hour away
+    if (
+      start.getTime() - now.getTime() <=
+      60 * 60 * 1000
+    ) {
       toast.error(
         "Rescheduling is allowed only more than 1 hour before the meeting."
       );
@@ -232,6 +299,7 @@ export default function Meetings() {
     }
 
     const startDate = new Date(meeting.startTime);
+
     const endDate = new Date(
       meeting.endTime || meeting.startTime
     );
@@ -247,20 +315,32 @@ export default function Meetings() {
     );
 
     setRescheduleStart(
-      `${String(startDate.getHours()).padStart(2, "0")}:${String(
-        startDate.getMinutes()
-      ).padStart(2, "0")}`
+      `${String(startDate.getHours()).padStart(
+        2,
+        "0"
+      )}:${String(startDate.getMinutes()).padStart(2, "0")}`
     );
 
     setRescheduleEnd(
-      `${String(endDate.getHours()).padStart(2, "0")}:${String(
-        endDate.getMinutes()
-      ).padStart(2, "0")}`
+      `${String(endDate.getHours()).padStart(
+        2,
+        "0"
+      )}:${String(endDate.getMinutes()).padStart(2, "0")}`
     );
   };
 
+  // Save rescheduled meeting
   const handleRescheduleSave = () => {
     if (!rescheduleMeeting) return;
+
+    if (
+      !rescheduleDate ||
+      !rescheduleStart ||
+      !rescheduleEnd
+    ) {
+      toast.error("Please select date, start time and end time.");
+      return;
+    }
 
     const now = new Date();
 
@@ -272,19 +352,24 @@ export default function Meetings() {
       `${rescheduleDate}T${rescheduleEnd}`
     );
 
-    // New meeting must be in future
+    if (
+      Number.isNaN(newStart.getTime()) ||
+      Number.isNaN(newEnd.getTime())
+    ) {
+      toast.error("Please select a valid date and time.");
+      return;
+    }
+
     if (newStart <= now) {
       toast.error("New meeting time must be in the future.");
       return;
     }
 
-    // End must be after start
     if (newEnd <= newStart) {
       toast.error("End time must be after start time.");
       return;
     }
 
-    // New start must also be at least 1 hour away
     if (
       newStart.getTime() - now.getTime() <
       60 * 60 * 1000
@@ -328,6 +413,7 @@ export default function Meetings() {
     toast.success("Meeting rescheduled successfully!");
   };
 
+  // Cancel meeting
   const handleCancelMeeting = (meeting) => {
     const confirmed = window.confirm(
       `Are you sure you want to cancel "${meeting.title}"?`
@@ -335,9 +421,7 @@ export default function Meetings() {
 
     if (!confirmed) return;
 
-    const meetingId = String(
-      meeting.id || meeting._id
-    );
+    const meetingId = String(meeting.id || meeting._id);
 
     setCancelledMeetings((prev) =>
       prev.includes(meetingId)
@@ -390,8 +474,8 @@ export default function Meetings() {
         appliedFilters.platform !== "All"
       ) {
         result = result.filter(
-          (m) =>
-            m.platform?.toLowerCase() ===
+          (meeting) =>
+            meeting.platform?.toLowerCase() ===
             appliedFilters.platform.toLowerCase()
         );
       }
@@ -403,7 +487,7 @@ export default function Meetings() {
         const needsDoc = appliedFilters.hasDoc === "Yes";
 
         result = result.filter(
-          (m) => Boolean(m.isDoc) === needsDoc
+          (meeting) => Boolean(meeting.isDoc) === needsDoc
         );
       }
 
@@ -413,8 +497,8 @@ export default function Meetings() {
         ).toDateString();
 
         result = result.filter(
-          (m) =>
-            new Date(m.startTime).toDateString() ===
+          (meeting) =>
+            new Date(meeting.startTime).toDateString() ===
             filterDateStr
         );
       }
@@ -429,6 +513,23 @@ export default function Meetings() {
     getMeetingType,
   ]);
 
+  // Reset pagination when filters/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter, search, appliedFilters]);
+
+  const totalMeetingPages =
+    Math.ceil(filteredMeetings.length / PAGE_SIZE) || 1;
+
+  const paginatedMeetings = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+
+    return filteredMeetings.slice(
+      startIndex,
+      startIndex + PAGE_SIZE
+    );
+  }, [filteredMeetings, currentPage]);
+
   return (
     <>
       <Sidebar
@@ -439,7 +540,8 @@ export default function Meetings() {
       <div className="flex min-h-screen bg-[#f8fafc] dark:bg-[#0f0f0f]">
         <div className="flex-1 flex flex-col">
           {/* Header */}
-          <div className="w-full bg-white dark:bg-[#1a1a1a] border-b border-[#e5e7eb] dark:border-[#2c2c2c] px-4 py-2 shadow-sm">
+          <div className="w-full bg-white dark:bg-[#1a1a1a] border-b border-[#e5e7eb] dark:border-[#2c2c2c] px-4 sm:px-6 lg:px-8 py-4 shadow-sm">
+            {/* Desktop Header */}
             <div className="hidden lg:flex items-start justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-[#111827] dark:text-white">
@@ -455,25 +557,28 @@ export default function Meetings() {
                 {userRole === "admin" && (
                   <button
                     onClick={() => setModalOpen(true)}
-                    className="flex items-center gap-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-full shadow-sm transition btn-hover"
+                    className="flex items-center gap-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-xl shadow-sm transition btn-hover font-semibold text-sm"
                   >
-                    <span className="text-[13px] font-medium">
-                      + Create New Meeting
-                    </span>
+                    <span>+ Create New Meeting</span>
                   </button>
                 )}
 
                 <button
                   onClick={handleSyncCalendar}
-                  className="flex items-center gap-2 bg-white dark:bg-[#2a2a2a] px-3.5 py-1.5 rounded-full border border-[#f1f1f1] dark:border-[#2f2f2f] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_3px_10px_rgba(0,0,0,0.06)] transition text-[#4b5563] dark:text-white btn-hover"
+                  disabled={isSyncing}
+                  className="flex items-center gap-2 bg-white dark:bg-[#2a2a2a] px-3.5 py-2 rounded-xl border border-[#f1f1f1] dark:border-[#2f2f2f] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_3px_10px_rgba(0,0,0,0.06)] transition text-[#4b5563] dark:text-white btn-hover disabled:opacity-50 text-xs font-semibold"
                 >
                   <RefreshCcw
                     size={14}
-                    className="text-[#111827] dark:text-white"
+                    className={`text-[#111827] dark:text-white ${
+                      isSyncing ? "animate-spin" : ""
+                    }`}
                   />
 
-                  <span className="text-[13px] font-medium">
-                    Sync Calendar
+                  <span>
+                    {isSyncing
+                      ? "Syncing..."
+                      : "Sync Calendar"}
                   </span>
                 </button>
               </div>
@@ -496,8 +601,9 @@ export default function Meetings() {
             </div>
           </div>
 
-          {/* Content */}
-          <div className="px-5 py-4 max-w-[1050px] mx-auto w-full">
+          {/* Content Area */}
+          <div className="px-4 sm:px-6 lg:px-8 py-6 w-full">
+            {/* Filter + Search */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
                 <FilterTabs
@@ -511,25 +617,36 @@ export default function Meetings() {
                   onClick={() =>
                     setShowFilter((prev) => !prev)
                   }
-                  className={`flex items-center justify-center gap-1.5 border px-3 py-1.5 rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition btn-hover ${
+                  className={`flex items-center justify-center gap-2 border px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
                     showFilter || appliedFilters
-                      ? "bg-blue-50 dark:bg-[#2a2a2a] border-[#2563eb] dark:border-[#73FBFD] text-[#2563eb] dark:text-[#73FBFD]"
-                      : "bg-white dark:bg-[#2a2a2a] border-[#f1f1f1] dark:border-[#2f2f2f] text-[#4b5563] dark:text-[#d1d5db]"
+                      ? "border-[#2461E6] bg-blue-50 dark:bg-blue-950/40 text-[#2461E6] dark:border-[#73FBFD] dark:text-[#73FBFD]"
+                      : "border-gray-200 bg-white dark:border-[#2A2A2A] dark:bg-[#121212] text-gray-800 dark:text-gray-200 hover:border-blue-500 dark:hover:border-[#73FBFD]"
                   }`}
                 >
                   <Funnel size={14} />
 
-                  <span className="text-[13px]">
-                    Filter
+                  <span>
+                    {appliedFilters ? "Filtered" : "Filter"}
                   </span>
 
                   {appliedFilters && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#2563eb] dark:bg-[#73FBFD]" />
+                    <span className="w-2 h-2 rounded-full bg-[#2461E6] dark:bg-[#73FBFD]" />
                   )}
                 </button>
 
-                <div className="flex items-center bg-white dark:bg-[#2a2a2a] border border-[#f1f1f1] dark:border-[#2f2f2f] rounded-full px-3 py-1.5 w-[180px] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                  <FaSearch className="text-[13px] text-[#9ca3af]" />
+                <div
+                  className="
+                    flex items-center
+                    bg-white dark:bg-[#121212]
+                    border border-gray-200
+                    dark:border-[#2A2A2A]
+                    rounded-xl
+                    px-3.5 py-2
+                    w-[190px] sm:w-[220px]
+                    shadow-xs
+                  "
+                >
+                  <FaSearch className="text-[13px] text-gray-400 dark:text-gray-500 shrink-0" />
 
                   <input
                     type="text"
@@ -538,7 +655,7 @@ export default function Meetings() {
                     onChange={(e) =>
                       setSearch(e.target.value)
                     }
-                    className="bg-transparent outline-none border-none pl-3 w-full text-[13px] text-[#111827] dark:text-white"
+                    className="bg-transparent outline-none border-none pl-2.5 w-full text-xs font-medium text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   />
                 </div>
               </div>
@@ -570,7 +687,8 @@ export default function Meetings() {
             <div className="mt-8">
               {filteredMeetings.length === 0 ? (
                 <div className="text-center py-12 text-gray-500 dark:text-gray-400 text-sm">
-                  No meetings found matching your filter criteria.
+                  No meetings found matching your filter
+                  criteria.
                 </div>
               ) : (
                 <AnimatePresence
@@ -592,13 +710,18 @@ export default function Meetings() {
                       x: direction === 1 ? -100 : 100,
                       opacity: 0,
                     }}
-                    transition={{ duration: 0.3 }}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 justify-items-start"
+                    transition={{
+                      duration: 0.3,
+                    }}
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                   >
-                    {filteredMeetings.map((meeting) => (
+                    {paginatedMeetings.map((meeting) => (
                       <MeetingCard
                         key={meeting.id || meeting._id}
                         {...meeting}
+                        googleMeetLink={
+                          meeting.googleMeetLink
+                        }
                         currentUserId={currentUserId}
                         onReschedule={() =>
                           openReschedule(meeting)
@@ -611,6 +734,20 @@ export default function Meetings() {
                   </motion.div>
                 </AnimatePresence>
               )}
+
+              {/* Pagination Controls */}
+              {filteredMeetings.length > 0 && (
+                <div className="mt-8">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalMeetingPages}
+                    totalItems={filteredMeetings.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setCurrentPage}
+                    itemLabel="meetings"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -619,7 +756,7 @@ export default function Meetings() {
         {modalOpen && (
           <ScheduleMeetingModal
             onClose={() => setModalOpen(false)}
-            onSave={handleScheduleSave}
+            onSave={handleCreateMeeting}
           />
         )}
 
@@ -628,9 +765,7 @@ export default function Meetings() {
           <>
             <div
               className="fixed inset-0 bg-black/50 z-40"
-              onClick={() =>
-                setRescheduleMeeting(null)
-              }
+              onClick={() => setRescheduleMeeting(null)}
             />
 
             <div className="fixed inset-0 z-50 flex items-center justify-center px-4">

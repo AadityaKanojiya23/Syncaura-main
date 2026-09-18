@@ -19,13 +19,14 @@ export const auth = async (req, res, next) => {
 
     const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 
-    // Fetch full user from DB
-    const result = await pool.query("SELECT * FROM users WHERE id = $1", [payload.sub || payload.id]);
-    if (result.rowCount === 0) return res.status(401).json({ message: 'User not found' });
+    // Fetch full active user from DB
+    const result = await pool.query("SELECT * FROM users WHERE id = $1 AND is_active = true", [payload.sub || payload.id]);
+    if (result.rowCount === 0) return res.status(401).json({ message: 'User not found or account deactivated' });
 
 
 
     const user = result.rows[0];
+    delete user.password_hash;
     req.user = user;
     
     // Map Google tokens if needed
@@ -36,15 +37,18 @@ export const auth = async (req, res, next) => {
       token_type: user.google_token_type,
       expiry_date: user.google_expiry_date
     };
-    console.log("Google Tokens:", req.googleTokens);
     
-    next();
+    return next();
   } catch (err) {
-    console.error('Auth error:', err);
+    if (err.name === 'TokenExpiredError') {
+      console.warn(`[Auth] Access token expired for ${req.method} ${req.originalUrl}`);
+    } else {
+      console.error('Auth error:', err.message);
+    }
     return res.status(401).json({
-    message: "Invalid or expired token",
-    error: err.message
-  });
+      message: "Invalid or expired token",
+      error: err.message
+    });
   }
 }
 

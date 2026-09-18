@@ -12,7 +12,7 @@ export default function AboutUs() {
     {
       year: '2024',
       title: 'The Inception',
-      description: 'FlowBit was founded by a team of visionary developers and designers seeking to eliminate tool fragmentation. We set out to design a single ecosystem that unifies chats, projects, and meetings.',
+      description: 'Flowbit was founded by a team of visionary developers and designers seeking to eliminate tool fragmentation. We set out to design a single ecosystem that unifies chats, projects, and meetings.',
       icon: <Sparkles className="w-6 h-6 text-blue-600 dark:text-[#73FBFD]" />,
     },
     {
@@ -24,7 +24,7 @@ export default function AboutUs() {
     {
       year: '2026',
       title: 'Public Launch',
-      description: 'FlowBit officially launched to the public worldwide. We introduced drag-and-drop task boards, secure instant chat channels, and interactive collaborative meeting spaces.',
+      description: 'Flowbit officially launched to the public worldwide. We introduced drag-and-drop task boards, secure instant chat channels, and interactive collaborative meeting spaces.',
       icon: <Award className="w-6 h-6 text-blue-600 dark:text-[#73FBFD]" />,
     },
     {
@@ -56,10 +56,10 @@ export default function AboutUs() {
               className="space-y-6"
             >
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                About <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400">FlowBit</span>
+                About <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400">Flowbit</span>
               </h1>
               <p className="text-lg md:text-xl max-w-3xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                FlowBit is a modern, unified collaborative workspace built to streamline projects, tasks, chat, meetings, and documents. We bring organization and speed to modern teams.
+                Flowbit is a modern, unified collaborative workspace built to streamline projects, tasks, chat, meetings, and documents. We bring organization and speed to modern teams.
               </p>
             </motion.div>
           </div>
@@ -147,7 +147,7 @@ export default function AboutUs() {
                 Our Journey & Milestones
               </h2>
               <p className="text-sm md:text-base max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                From inception to global deployment, trace the history and exciting future of FlowBit.
+                From inception to global deployment, trace the history and exciting future of Flowbit.
               </p>
             </div>
 

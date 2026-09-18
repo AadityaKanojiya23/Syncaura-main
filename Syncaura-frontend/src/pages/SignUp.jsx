@@ -9,7 +9,6 @@ import { FcGoogle } from 'react-icons/fc'
 import { FaGithub, FaFacebookF } from 'react-icons/fa'
 import leftArt from "../assets/left-art.png";
 import "./style9.css";
-import RoleSelector from "../components/roles/RoleSelector";
 import api from "../config/axios.js";
 import Spinner from "../components/Spinner"
 
@@ -53,7 +52,6 @@ export default function SignUpPage() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const { isLoading: reduxLoading, error: reduxError } = useSelector((state) => state.auth || {})
-  const [selectedRole, setSelectedRole] = useState("User");
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -65,7 +63,7 @@ export default function SignUpPage() {
 
   const handleGoogleLogin = () => {
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000";
-    window.location.href = `${apiBase}/api/auth/google`;
+    window.location.href = `${apiBase}/api/auth/google?origin=${encodeURIComponent(window.location.origin)}`;
   };
 
   const handleGithubLogin = () => {
@@ -116,7 +114,7 @@ export default function SignUpPage() {
           name: form.name.trim(),
           email: form.email.trim(),
           password: form.password.trim(),
-          role: selectedRole,
+          role: "user",
         })
       ).unwrap()
 
@@ -163,7 +161,6 @@ export default function SignUpPage() {
                   required
                 />
               </label>
-              {/* {nameError && <p className="field-error">{nameError}</p>} */}
 
               {/* Email Address Input Box Container */}
               <label className="field">
@@ -176,7 +173,6 @@ export default function SignUpPage() {
                   required
                 />
               </label>
-              {/* {emailError && <p className="field-error">{emailError}</p>} */}
 
               {/* Password Component */}
               <PasswordField
@@ -190,26 +186,8 @@ export default function SignUpPage() {
                 onBlur={() => {
                   setShowStrength(false);
                 }}
-                // onChange={(e) => {
-                //   update("password")(e);
-                //   checkPasswordStrength(e.target.value);
-                // }}
                 onChange={update("password")}
               />
-
-              {/* {showStrength && (
-                <p className={`password-strength ${passwordStrength.toLowerCase()}`}>
-                  Password Strength: {passwordStrength}
-                </p>
-              )}
-
-              {showStrength && (
-                <div className="strength-bar">
-                  <div className={`strength-fill ${passwordStrength.toLowerCase()}`}></div>
-                </div>
-              )}
-
-              {passwordError && <p className="field-error">{passwordError}</p>} */}
 
               {/* Confirm Password Component */}
               <PasswordField
@@ -217,14 +195,6 @@ export default function SignUpPage() {
                 value={form.confirm}
                 onChange={update("confirm")}
               />
-
-              {/* Role based logic registration */}
-              <div className="w-full mt-4 text-white">
-                <RoleSelector 
-                  selectedRole={selectedRole} 
-                  onRoleChange={setSelectedRole} 
-                />
-              </div>
             </div>
 
             <label className="check">

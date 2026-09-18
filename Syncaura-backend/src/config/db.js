@@ -30,15 +30,42 @@ pool.on('error', (err) => {
   console.error('Unexpected error on idle database client:', err.message);
 });
 
-pool.connect()
-  .then(() => console.log("✅ PostgreSQL Connected"))
-  .catch((err) => console.error("❌ PostgreSQL Connection Error:", err));
-
-
 pool.query("SELECT current_database(), current_schema()")
-  .then((res) => {
+  .then(async (res) => {
+    console.log("✅ PostgreSQL Connected");
     console.log("Connected DB:", res.rows[0].current_database);
     console.log("Current Schema:", res.rows[0].current_schema); 
+
+    // Auto-migrate schema updates
+    try {
+      await pool.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_pic TEXT;
+        ALTER TABLE leaves ADD COLUMN IF NOT EXISTS leave_type VARCHAR(100) DEFAULT 'Casual Leave';
+        ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;
+        ALTER TABLE projects ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(id) ON DELETE SET NULL;
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL;
+        ALTER TABLE notices ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'GENERAL';
+        ALTER TABLE notices ADD COLUMN IF NOT EXISTS creator_id UUID REFERENCES users(id) ON DELETE SET NULL;
+        ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'GENERAL';
+        ALTER TABLE documents ADD COLUMN IF NOT EXISTS type VARCHAR(100) DEFAULT 'DOCUMENT';
+        ALTER TABLE documents ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';
+        ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_url TEXT;
+        ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_name VARCHAR(255);
+        ALTER TABLE document_versions ADD COLUMN IF NOT EXISTS version_number VARCHAR(50) DEFAULT 'v1.0';
+        ALTER TABLE document_versions ADD COLUMN IF NOT EXISTS title VARCHAR(255);
+        ALTER TABLE complaints ADD COLUMN IF NOT EXISTS task_id UUID REFERENCES tasks(id) ON DELETE SET NULL;
+        ALTER TABLE meetings ALTER COLUMN end_time DROP NOT NULL;
+        CREATE TABLE IF NOT EXISTS project_members (
+          project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+          user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (project_id, user_id)
+        );
+      `);
+      console.log("✅ Database schema migrated successfully");
+    } catch (migErr) {
+      console.error("Schema migration error:", migErr);
+    }
   })
   .catch(console.error);
 

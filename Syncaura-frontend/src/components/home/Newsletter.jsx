@@ -57,7 +57,7 @@ const Newsletter = () => {
           className="text-sm md:text-base mb-6 md:mb-8 leading-relaxed"
           style={{ color: 'var(--text-secondary)' }}
         >
-          {t('newsletter_desc', 'Get updates on new features, tips, and stories from teams using FlowBit.')}
+          {t('newsletter_desc', 'Get updates on new features, tips, and stories from teams using Flowbit.')}
         </p>
 
         {/* FORM */}

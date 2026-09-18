@@ -1,42 +1,20 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Check, GitPullRequest, MessageSquareText } from "lucide-react";
+import { Check, ClipboardList } from "lucide-react";
 
-const activities = [
-  {
-    icon: <GitPullRequest className="w-5 h-5" />,
-    title: (
-      <>
-        <span className="font-semibold">Merged PR #452</span> into{" "}
-        <span className="text-blue-600 dark:text-blue-400">main</span>
-      </>
-    ),
-    time: "2 hours ago",
-    color: "bg-blue-500",
-  },
-  {
-    icon: <Check className="w-5 h-5" />,
-    title: (
-      <>
-        <span className="font-semibold">Completed Task:</span> Finalize documentation
-      </>
-    ),
-    time: "5 hours ago",
-    color: "bg-green-500",
-  },
-  {
-    icon: <MessageSquareText className="w-5 h-5" />,
-    title: (
-      <>
-        <span className="font-semibold">Sarah Chen</span> commented on Login Refactor
-      </>
-    ),
-    time: "Yesterday",
-    color: "bg-gray-400",
-  },
-];
+const RecentActivityCard = ({ tasks = [], loading = false }) => {
+  const activities = tasks
+    .filter((task) => task.updated_at || task.created_at)
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+    .slice(0, 5)
+    .map((task) => ({
+      id: task.id,
+      icon: task.status === "DONE" ? <Check className="w-5 h-5" /> : <ClipboardList className="w-5 h-5" />,
+      title: task.status === "DONE" ? `Completed task: ${task.title}` : `Updated task: ${task.title}`,
+      time: new Date(task.updated_at || task.created_at).toLocaleString(),
+      color: task.status === "DONE" ? "bg-green-500" : "bg-blue-500",
+    }));
 
-const RecentActivityCard = () => {
   return (
     <div
       className="
@@ -50,7 +28,7 @@ const RecentActivityCard = () => {
       "
     >
       {/* Title */}
-      <h2 className="text-[#64748B] dark:text-gray-200 font-bold text-xl sm:text-2xl mb-6">
+      <h2 className="text-gray-900 dark:text-white font-bold text-xl sm:text-2xl mb-6">
         Recent Activity
       </h2>
 
@@ -61,16 +39,18 @@ const RecentActivityCard = () => {
           className="
             absolute left-4 top-0
             h-full w-[2px]
-            bg-[#E3E5EA] dark:bg-[#2A2A2A]
+            bg-gray-200 dark:bg-[#2A2A2A]
           "
         />
 
-        {activities.map((item, index) => (
+        {loading && <p className="pl-14 text-sm text-gray-500 dark:text-gray-400">Loading activity...</p>}
+        {!loading && activities.length === 0 && <p className="pl-14 text-sm text-gray-500 dark:text-gray-400">No recent activity.</p>}
+        {!loading && activities.map((item) => (
           <motion.div
-            key={index}
+            key={item.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.15, duration: 0.4 }}
+            transition={{ duration: 0.4 }}
             className="flex items-start gap-4 relative"
           >
             {/* Icon */}
@@ -89,11 +69,11 @@ const RecentActivityCard = () => {
 
             {/* Content */}
             <div className="flex flex-col">
-              <div className="text-[#64748B] dark:text-gray-200 text-sm">
+              <div className="text-gray-900 dark:text-gray-100 font-semibold text-sm">
                 {item.title}
               </div>
 
-              <div className="text-gray-400 dark:text-gray-500 text-xs mt-1">
+              <div className="text-gray-500 dark:text-gray-400 text-xs mt-1">
                 {item.time}
               </div>
             </div>

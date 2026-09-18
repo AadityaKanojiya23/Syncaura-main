@@ -2,7 +2,7 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -16,6 +16,11 @@
   -moz-osx-font-smoothing: grayscale;
 
   transition: font-size 0.2s ease;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer base {
@@ -55,19 +60,23 @@
 }
 
 @theme {
-  --font-poppin-reg: "Poppine-reg", sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-poppins: 'Poppins', 'Plus Jakarta Sans', sans-serif;
+  --font-poppin-reg: 'Poppins', 'Plus Jakarta Sans', sans-serif;
   --font-anta: "Anta", sans-serif;
   /* Responsive breakpoints used across the app:
      sm = 640px, md = 768px, lg = 1024px, xl = 1280px, 2xl = 1536px */
   --breakpoint-xs: 370px;
-  --breakpoint-xsm: 470px;
-  --breakpoint-xssm: 500px;
+   --breakpoint-xsm: 470px;
+    --breakpoint-xssm: 500px;
   --breakpoint-sm: 640px;
-  --breakpoint-md: 768px;
-  --breakpoint-lg: 1024px;
-  --breakpoint-xl: 1280px;
-  --breakpoint-2xl: 1536px;
-  --breakpoint-page-2xl: 1650px;
+--breakpoint-md: 768px;
+--breakpoint-lg: 1024px;
+--breakpoint-xl: 1280px;
+--breakpoint-2xl: 1536px;
+--breakpoint-page-2xl: 1650px;
+
+
 }
 
 .h1-poppin {
@@ -160,14 +169,15 @@
 
 /* Container scrollable but scrollbar hidden */
 .sidebar-chat-list {
-  overflow-y: scroll; /* enable vertical scrolling */
+  overflow-y: scroll;       /* enable vertical scrolling */
   -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;    /* Firefox */
 }
 
 .sidebar-chat-list::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Edge */
+  display: none;            /* Chrome, Safari, Edge */
 }
+
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -176,6 +186,28 @@
 .no-scrollbar {
   -ms-overflow-style: none; /* IE & Edge */
   scrollbar-width: none; /* Firefox */
+}
+
+/* Custom Scrollbar for Chat */
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.2) transparent;
+}
+.dark .chat-scroll {
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+}
+.dark .chat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
 }
 
 :root {

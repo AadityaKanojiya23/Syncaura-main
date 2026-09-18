@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { getIO } from '../config/socket.js';
 
 /**
  * Create and send a notification to users
@@ -17,6 +18,7 @@ export const createNotification = async (notificationData) => {
 
     // Handle both single recipient and array of recipients
     const recipientArray = Array.isArray(recipients) ? recipients : [recipients];
+    const io = getIO();
 
     const notifications = await Promise.all(
       recipientArray.map(async (recipientId) => {
@@ -35,7 +37,18 @@ export const createNotification = async (notificationData) => {
             data ? JSON.stringify(data) : null
           ]
         );
-        return result.rows[0];
+        const createdNotif = result.rows[0];
+
+        // Real-time socket delivery
+        if (io && recipientId) {
+          try {
+            io.to(`user_${recipientId}`).emit("notification:new", createdNotif);
+          } catch (emitErr) {
+            console.warn("Socket notification emit failed:", emitErr.message);
+          }
+        }
+
+        return createdNotif;
       })
     );
 

@@ -18,15 +18,18 @@ const SprintContribution = ({ CONTRIBUTIONS }) => {
       "
     >
       
-      <h2 className="text-[#64748B] dark:text-gray-200 font-bold text-2xl sm:text-2xl mb-6">
+      <h2 className="text-gray-900 dark:text-white font-bold text-xl sm:text-2xl mb-6">
         Sprint Contribution
       </h2>
 
       {/* Cards */}
       <div className="grid grid-cols-2 gap-6 sm:gap-10 xl:px-20">
-        {CONTRIBUTIONS.map((item) => (
+        {CONTRIBUTIONS.length > 0 && CONTRIBUTIONS.map((item) => (
           <ContributionCard key={item.id} {...item} />
         ))}
+        {CONTRIBUTIONS.length === 0 && (
+          <p className="col-span-2 text-sm text-gray-500 dark:text-gray-400">Sprint contribution data is unavailable.</p>
+        )}
       </div>
     </motion.div>
   );

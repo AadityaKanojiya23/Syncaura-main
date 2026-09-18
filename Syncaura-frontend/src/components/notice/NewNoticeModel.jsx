@@ -1,13 +1,20 @@
 import { X, Upload, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import MotionSelect from "../projects/Model/MotionSelect";
 import { useTranslation } from "react-i18next";
 
-export default function NewNoticeModal({ onClose, addNotice }) {
+export default function NewNoticeModal({ onClose, addNotice, initialData }) {
   const { t } = useTranslation();
-  const { register, handleSubmit, control, setValue, watch, formState: { errors }, } = useForm();
+  const isEditMode = Boolean(initialData);
+  const { register, handleSubmit, control, setValue, watch, formState: { errors }, } = useForm({
+    defaultValues: {
+      title: initialData?.title || "",
+      description: initialData?.description || "",
+      category: initialData?.category || "",
+    },
+  });
   const [category, setCategory] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const noticeCategories = [
@@ -23,18 +30,51 @@ export default function NewNoticeModal({ onClose, addNotice }) {
 
   const files = watch("attachments");
   const fileRef = useRef(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const onSubmit = (data) => {
-    const noticeData = {
-      title: data.title,
-      description: data.description,
-      category: data.category,
-      createdAt: data.date,
-      attachments: data.attachments,
-    };
+  function formatDateTime(value) {
+    if (!value) return null;
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
 
-    addNotice(noticeData);
-    onClose();
+  const createdAtDisplay = formatDateTime(initialData?.created_at || initialData?.createdAt);
+  const updatedAtDisplay = formatDateTime(initialData?.updated_at || initialData?.updatedAt);
+
+  const onSubmit = async (data) => {
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    if (data.category) formData.append("category", data.category);
+
+    if (data.attachments && data.attachments.length > 0) {
+      Array.from(data.attachments).forEach((file) => {
+        formData.append("attachments", file);
+      });
+    }
+
+    try {
+      setSubmitError("");
+      setIsSubmitting(true);
+      const result = await addNotice(formData);
+      if (result?.error) {
+        setSubmitError(result.payload || "Failed to submit notice. Please try again.");
+        return;
+      }
+      onClose();
+    } catch (err) {
+      setSubmitError(err?.message || "Failed to submit notice. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   const onError = (formErrors) => {
     console.log("Form Errors:", formErrors);
@@ -95,7 +135,7 @@ export default function NewNoticeModal({ onClose, addNotice }) {
 
           <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-4">
             <h2 className="text-lg font-semibold text-black dark:text-white">
-              {t("new_notice", "New Notice")}
+              {isEditMode ? t("edit_notice", "Edit Notice") : t("new_notice", "New Notice")}
             </h2>
 
             {/* Category */}
@@ -115,6 +155,9 @@ export default function NewNoticeModal({ onClose, addNotice }) {
                     )}
                   />
                 </div>
+                {errors.category && (
+                  <p className="mt-1 text-xs text-red-500">{t("category_required", "Please select a category.")}</p>
+                )}
 
 
               </div>
@@ -138,19 +181,17 @@ export default function NewNoticeModal({ onClose, addNotice }) {
       transition-all
     "
               />
+              {errors.title && (
+                <p className="mt-1 text-xs text-red-500">{t("title_required", "Title is required.")}</p>
+              )}
             </div>
-            {/* Subject */}
-            <div>
-              <label className="text-sm font-medium text-black dark:text-white">
-                {t("date", "Date")}
-              </label>
-              <input
-                type="date"
-                {...register("date", { required: true })}
-                className="
-                 mt-1 w-full rounded-full px-4 py-2 text-sm outline-none bg-white dark:bg-[#1f1f1f] text-black dark:text-white border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-all"
-              />
-            </div>
+            {/* Created / Last edited (auto, read-only) */}
+            {isEditMode && (createdAtDisplay || updatedAtDisplay) && (
+              <div className="flex flex-col gap-0.5 text-xs text-gray-500 dark:text-gray-400">
+                {createdAtDisplay && <span>Created: {createdAtDisplay}</span>}
+                {updatedAtDisplay && <span>Last edited: {updatedAtDisplay}</span>}
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium text-black dark:text-white">
@@ -169,6 +210,9 @@ export default function NewNoticeModal({ onClose, addNotice }) {
                   transition-all
                 "
               />
+              {errors.description && (
+                <p className="mt-1 text-xs text-red-500">{t("description_required", "Description is required.")}</p>
+              )}
             </div>
 
             {/* Attachment */}
@@ -227,10 +271,15 @@ export default function NewNoticeModal({ onClose, addNotice }) {
               )}
             </div>
 
+            {submitError && (
+              <p className="text-center text-xs text-red-500">{submitError}</p>
+            )}
+
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: isSubmitting ? 1 : 1.05 }}
+              whileTap={{ scale: isSubmitting ? 1 : 0.95 }}
               type="submit"
+              disabled={isSubmitting}
               className="
                 mt-5 mx-auto
                 dark:bg-[#73FBFD] px-5 py-2 dark:text-black
@@ -239,9 +288,14 @@ export default function NewNoticeModal({ onClose, addNotice }) {
                 text-[13px] font-medium text-white
                 transition-colors
                 flex items-center justify-center
+                disabled:opacity-60 disabled:cursor-not-allowed
               "
             >
-              {t("submit_notice", "Submit Notice")}
+              {isSubmitting
+                ? t("submitting", "Submitting...")
+                : isEditMode
+                  ? t("update_notice", "Update Notice")
+                  : t("submit_notice", "Submit Notice")}
             </motion.button>
           </form>
         </motion.div>

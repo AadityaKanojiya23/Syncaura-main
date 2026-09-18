@@ -7,17 +7,17 @@ const TopCard = ({ title, IconData, count, data = null, titleColor=null, countCo
       /* DARK MODE BACKGROUND - Specific Fix */
       dark:bg-[#1E1E1E]"
     >
-      <div className="flex items-center justify-between w-full ">
-        <h1 className={`${titleColor ?? "text-[#B6C0CB]"} dark:text-gray-400 text-sm font-normal uppercase`}>
+      <div className="flex items-center justify-between w-full">
+        <h3 className={`${titleColor ?? "text-slate-600 dark:text-slate-300"} text-xs font-semibold uppercase tracking-wider`}>
           {title}
-        </h1>
-        <div className="flex items-center justify-center ">{IconData}</div>
+        </h3>
+        <div className="flex items-center justify-center">{IconData}</div>
       </div>
-      <div className="flex items-end justify-between w-full ">
-        {/* Count: Black/Grey in light mode, Pure White in dark mode */}
-        <h1 className={`${countColor ?? "text-[#5E6575]"} text-4xl font-bold dark:text-white`}>
+      <div className="flex items-end justify-between w-full">
+        {/* Count */}
+        <h2 className={`${countColor ?? "text-gray-900 dark:text-white"} text-3xl sm:text-4xl font-bold`}>
           {count}
-        </h1>
+        </h2>
         {data && data}
       </div>
     </div>

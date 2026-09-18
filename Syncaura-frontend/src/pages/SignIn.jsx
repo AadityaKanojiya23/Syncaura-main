@@ -31,7 +31,7 @@ export default function SignIn() {
 
   const handleGoogleLogin = () => {
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000";
-    window.location.href = `${apiBase}/api/auth/google`;
+    window.location.href = `${apiBase}/api/auth/google?origin=${encodeURIComponent(window.location.origin)}`;
   };
 
   const handleGithubLogin = () => {
@@ -143,7 +143,7 @@ export default function SignIn() {
 
             <p className="lead">
               {selectedRole === 'employee'
-                ? t('auth_signin_lead')
+                ? t('auth_signin_lead', 'Login to continue your journey.')
                 : getLeadText()}
             </p>
 

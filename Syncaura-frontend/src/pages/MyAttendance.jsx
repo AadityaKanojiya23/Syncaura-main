@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import api from "../config/axios";
+import Pagination from "../components/common/Pagination";
 
 const MONTHS = [
   { value: 1, label: "January" },
@@ -55,12 +56,18 @@ export default function MyAttendance() {
   const [records, setRecords] = useState([]);
   const [searchFilter, setSearchFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedMonth, selectedYear, searchFilter, statusFilter]);
 
   const fetchAttendance = useCallback(async () => {
     setLoading(true);
     try {
       const response = await api.get(
-        `/api/attendance/my-attendance?month=${selectedMonth}&year=${selectedYear}`
+        `/attendance/my-attendance?month=${selectedMonth}&year=${selectedYear}`
       );
       if (response.data && response.data.success) {
         setSummary(response.data.summary);
@@ -145,6 +152,12 @@ export default function MyAttendance() {
       return matchesDate && matchesStatus;
     });
   }, [records, searchFilter, statusFilter]);
+
+  const totalPages = Math.ceil(filteredRecords.length / PAGE_SIZE) || 1;
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredRecords.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredRecords, currentPage, PAGE_SIZE]);
 
   const getStatusBadge = (status) => {
     const configs = {
@@ -284,7 +297,7 @@ export default function MyAttendance() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-gray-50 dark:bg-[#1E2023] text-gray-700 dark:text-gray-300 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-[#73FBFD] cursor-pointer"
+                className="bg-white dark:bg-[#0B0B0B] text-gray-800 dark:text-gray-200 text-xs font-semibold border border-gray-200 dark:border-[#2A2A2A] rounded-xl px-3 py-1.5 outline-none focus:ring-1 focus:ring-[#2461E6] dark:focus:ring-[#73FBFD] cursor-pointer"
               >
                 <option value="All">All Status</option>
                 <option value="Present">Present</option>
@@ -292,16 +305,16 @@ export default function MyAttendance() {
                 <option value="Late">Late</option>
                 <option value="Leave">Leave</option>
               </select>
-              <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-[#1E2023] border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5">
+              <div className="flex items-center gap-1.5 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-[#2A2A2A] rounded-xl px-3 py-1.5 shadow-xs">
                 <CalendarIcon className="size-3.5 text-gray-400 shrink-0" />
                 <input
                   type="date"
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
-                  className="bg-transparent text-gray-700 dark:text-gray-300 text-xs outline-none cursor-pointer w-28"
+                  className="bg-transparent text-gray-800 dark:text-gray-200 text-xs font-medium outline-none cursor-pointer w-28 date-input"
                 />
                 {searchFilter && (
-                  <button onClick={() => setSearchFilter("")} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                  <button onClick={() => setSearchFilter("")} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer">
                     <X className="size-3" />
                   </button>
                 )}
@@ -352,7 +365,7 @@ export default function MyAttendance() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRecords.map((record, i) => {
+                      {paginatedRecords.map((record, i) => {
                         const d = new Date(record.date);
                         const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
                         const dateFmt = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -395,7 +408,7 @@ export default function MyAttendance() {
 
                 {/* Mobile */}
                 <div className="block md:hidden divide-y divide-gray-100 dark:divide-gray-800/40">
-                  {filteredRecords.map((record) => {
+                  {paginatedRecords.map((record) => {
                     const d = new Date(record.date);
                     const dateFmt = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
                     return (
@@ -419,6 +432,18 @@ export default function MyAttendance() {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Pagination */}
+                <div className="px-5 py-2 border-t border-gray-100 dark:border-gray-800/60">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={filteredRecords.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setCurrentPage}
+                    itemLabel="attendance records"
+                  />
                 </div>
               </motion.div>
             )}

@@ -142,7 +142,7 @@ const Footer = () => {
                 className="text-2xl font-black text-transparent bg-clip-text"
                 style={{ backgroundImage: 'linear-gradient(135deg, #3b82f6, #6366f1, #8b5cf6)' }}
               >
-                FlowBit
+                Flowbit
               </span>
             </div>
 
