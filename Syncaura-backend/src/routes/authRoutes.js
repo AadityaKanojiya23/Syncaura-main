@@ -27,7 +27,7 @@ import { permit } from '../middlewares/role.js';
 import {
   registerValidator,
   loginValidator,
-  changePasswordValidator,
+  changePasswordValidator,     
   forgotPasswordValidator,
   resetPasswordValidator,
   requestPasswordOtpValidator,
