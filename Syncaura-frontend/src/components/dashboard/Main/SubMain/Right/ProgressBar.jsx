@@ -12,7 +12,7 @@ const ProgressBar = ({ value = 45 }) => {
       <span className="text-[#7D8FB3] text-sm font-semibold">
         {value}%
       </span>
-    </div>
+    </div>    
   );
 };
 
