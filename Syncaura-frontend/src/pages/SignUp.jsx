@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'react-toastify'
 import { UserRound, Mail, LockKeyhole, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
-import { FaGithub, FaFacebookF } from 'react-icons/fa'
+import { FaGithub} from 'react-icons/fa'
 import leftArt from "../assets/left-art.png";
 import "./style9.css";
 import api from "../config/axios.js";
@@ -225,8 +225,7 @@ export default function SignUpPage() {
             <div className="socials">
               <button type="button" aria-label={t('continue_with_google')} onClick={handleGoogleLogin}><FcGoogle size={23} /></button>
               <button type="button" aria-label={t('continue_with_github')} onClick={handleGithubLogin}><FaGithub size={22} /></button>
-              <button type="button" className="facebook" aria-label={t('continue_with_facebook')} onClick={() => toast.info("Facebook registration is not implemented yet. Please use the form above to register.")}><FaFacebookF size={19} /></button>
-            </div>
+               </div>
             
             <p className="switch">
               {t('alreadyHaveAccount')}{" "}
