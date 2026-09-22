@@ -136,7 +136,7 @@ export default function LearnMore() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-4 gap-6">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {workflowSteps.map((step, idx) => {
                 const isHovered = hoveredStep === idx;
                 return (
@@ -148,7 +148,7 @@ export default function LearnMore() {
                     transition={{ duration: 0.5, delay: idx * 0.1 }}
                     onMouseEnter={() => setHoveredStep(idx)}
                     onMouseLeave={() => setHoveredStep(null)}
-                    className="p-6 rounded-2xl border relative flex flex-col justify-between h-64 transition-all duration-300 cursor-default"
+                    className="p-6 rounded-2xl border relative flex flex-col justify-between min-h-[16rem] h-full transition-all duration-300 cursor-default"
                     style={{ 
                       backgroundColor: 'var(--card-bg)', 
                       borderColor: isHovered ? 'var(--accent-color)' : 'var(--border-color)',
@@ -192,7 +192,7 @@ export default function LearnMore() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feat, idx) => {
                 const isHovered = hoveredFeature === idx;
                 return (
@@ -204,7 +204,7 @@ export default function LearnMore() {
                     transition={{ duration: 0.4, delay: idx * 0.05 }}
                     onMouseEnter={() => setHoveredFeature(idx)}
                     onMouseLeave={() => setHoveredFeature(null)}
-                    className="p-6 rounded-2xl border space-y-4 transition-all duration-300 cursor-default"
+                    className="p-6 rounded-2xl border space-y-4 h-full transition-all duration-300 cursor-default"
                     style={{ 
                       backgroundColor: 'var(--card-bg)', 
                       borderColor: isHovered ? 'var(--accent-color)' : 'var(--border-color)',
