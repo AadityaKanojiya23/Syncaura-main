@@ -5,7 +5,7 @@ import FileUploadBox from "../FileHandle/FileUploadBox";
 import { useTranslation } from "react-i18next";
 import { TbBrandGoogleDrive } from "react-icons/tb";
 
-export default function ScheduleMeetingModal({ onClose, onSave }) {
+export default function ScheduleMeetingModal({ onClose, onSave, creatorId }) {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
